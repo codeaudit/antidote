@@ -3,7 +3,7 @@ from collections import OrderedDict
 from typing import Any, Dict, TYPE_CHECKING, Type
 
 from .stack import InstantiationStack
-from .._utils import SlotReprMixin
+from .._internal.utils import SlotReprMixin
 from ..exceptions import (DependencyCycleError, DependencyInstantiationError,
                           DependencyNotFoundError, DependencyNotProvidableError)
 

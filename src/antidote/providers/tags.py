@@ -4,7 +4,7 @@ from typing import (Any, Callable, Dict, Generic, Iterable, Iterator, List, Tupl
                     TypeVar, Union)
 
 from .base import Provider
-from .._utils import SlotReprMixin
+from .._internal.utils import SlotReprMixin
 from ..container import Dependency, DependencyContainer, Instance
 from ..exceptions import DependencyNotProvidableError, DuplicateTagError
 

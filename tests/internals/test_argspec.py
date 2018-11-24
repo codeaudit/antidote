@@ -1,19 +1,7 @@
 import pytest
 
-from antidote._utils import Argument, ArgumentSpecification, SlotReprMixin, \
+from antidote._internal.argspec import Argument, ArgumentSpecification, \
     get_arguments_specification
-
-
-class DummySlot(SlotReprMixin):
-    __slots__ = ('test', 'value')
-
-    def __init__(self, test, value):
-        self.test = test
-        self.value = value
-
-
-def test_slot_repr_mixin():
-    assert repr(DummySlot(1, 'test')) == "DummySlot(test=1, value='test')"
 
 
 def f(a, b, c=1):

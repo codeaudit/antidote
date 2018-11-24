@@ -1,7 +1,7 @@
 import pytest
 
 from antidote import (DependencyManager, DependencyNotFoundError,
-                      DependencyNotProvidableError, Instance)
+                      DependencyNotProvidableError, Instance, Provider)
 from antidote.providers import FactoryProvider, GetterProvider
 from antidote.providers.tags import TagProvider
 
@@ -13,7 +13,7 @@ def test_provider():
     container['service'] = object()
 
     @manager.provider(use_names=True)
-    class DummyProvider:
+    class DummyProvider(Provider):
         def __init__(self, service=None):
             self.service = service
 
@@ -30,17 +30,22 @@ def test_provider():
     with pytest.raises(DependencyNotFoundError):
         container['test2']
 
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         manager.provider(object())
 
     with pytest.raises(ValueError):
         @manager.provider
-        class MissingAntidoteProvideMethod:
+        class Dummy:
+            pass
+
+    with pytest.raises(TypeError):
+        @manager.provider
+        class MissingAntidoteProvideMethod(Provider):
             pass
 
     with pytest.raises(TypeError):
         @manager.provider(auto_wire=False)
-        class MissingDependencyProvider:
+        class MissingDependencyProvider(Provider):
             def __init__(self, service):
                 self.service = service
 
@@ -57,7 +62,7 @@ def test_providers():
     assert TagProvider in manager.providers
 
     @manager.provider
-    class DummyProvider:
+    class DummyProvider(Provider):
         def __antidote_provide__(self, dependency):
             return Instance(1)
 

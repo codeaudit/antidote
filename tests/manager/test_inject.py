@@ -2,52 +2,52 @@ import pytest
 
 from antidote import DependencyManager
 
-
-def test_inject_bind():
-    manager = DependencyManager()
-    container = manager.container
-
-    class Service:
-        pass
-
-    manager.register(Service)
-
-    @manager.inject(bind=True)
-    def f(x):
-        return x
-
-    with pytest.raises(TypeError):
-        f()
-
-    @manager.inject(arg_map=dict(x=Service), bind=True)
-    def g(x):
-        return x
-
-    assert container[Service] is g()
-
-    # arguments are bound, so one should not be able to pass injected
-    # argument.
-    with pytest.raises(TypeError):
-        g(1)
-
-    container['service'] = container[Service]
-    container['service_bis'] = container[Service]
-
-    @manager.inject(use_names=True, bind=True)
-    def h(service, service_bis=None):
-        return service, service_bis
-
-    result = h()
-    assert container[Service] is result[0]
-    assert container[Service] is result[1]
-
-    @manager.inject(use_names=('service',), bind=True)
-    def h(service, service_bis=None):
-        return service, service_bis
-
-    result = h()
-    assert container[Service] is result[0]
-    assert None is result[1]
+#
+# def test_inject_bind():
+#     manager = DependencyManager()
+#     container = manager.container
+#
+#     class Service:
+#         pass
+#
+#     manager.register(Service)
+#
+#     @manager.inject(bind=True)
+#     def f(x):
+#         return x
+#
+#     with pytest.raises(TypeError):
+#         f()
+#
+#     @manager.inject(arg_map=dict(x=Service), bind=True)
+#     def g(x):
+#         return x
+#
+#     assert container[Service] is g()
+#
+#     # arguments are bound, so one should not be able to pass injected
+#     # argument.
+#     with pytest.raises(TypeError):
+#         g(1)
+#
+#     container['service'] = container[Service]
+#     container['service_bis'] = container[Service]
+#
+#     @manager.inject(use_names=True, bind=True)
+#     def h(service, service_bis=None):
+#         return service, service_bis
+#
+#     result = h()
+#     assert container[Service] is result[0]
+#     assert container[Service] is result[1]
+#
+#     @manager.inject(use_names=('service',), bind=True)
+#     def h(service, service_bis=None):
+#         return service, service_bis
+#
+#     result = h()
+#     assert container[Service] is result[0]
+#     assert None is result[1]
 
 
 def test_inject_with_mapping():

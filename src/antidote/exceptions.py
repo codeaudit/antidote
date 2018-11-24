@@ -2,6 +2,10 @@ class AntidoteError(Exception):
     """ Base class of all errors of antidote. """
 
 
+class UndefinedContainerError(AntidoteError):
+    """ Raised whenever injection is tried without container """
+
+
 class DependencyDuplicateError(AntidoteError):
     """
     A dependency already exists with the same id.

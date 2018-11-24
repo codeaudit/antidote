@@ -4,8 +4,8 @@ from .container import Dependency, DependencyContainer, Instance
 from .exceptions import (AntidoteError, DependencyCycleError, DependencyDuplicateError,
                          DependencyInstantiationError, DependencyNotFoundError,
                          DependencyNotProvidableError)
-from .injector import DependencyInjector
 from .manager import DependencyManager
+from .injection import inject
 from .providers import FactoryProvider, GetterProvider, Provider, TagProvider
 from .providers.factories import Build
 from .providers.tags import Tag, Tagged, TaggedDependencies
@@ -18,9 +18,9 @@ except DistributionNotFound:  # pragma: no cover
 
 __all__ = [
     'Build',
+    'inject',
     'Instance',
     'DependencyContainer',
-    'DependencyInjector',
     'DependencyManager',
     'AntidoteError',
     'DependencyNotProvidableError',

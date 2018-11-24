@@ -1,7 +1,7 @@
 from typing import Any, Callable, Dict, Tuple
 
 from .base import Provider
-from .._utils import SlotReprMixin
+from .._internal.utils import SlotReprMixin
 from ..container import Dependency, Instance
 from ..exceptions import DependencyDuplicateError, DependencyNotProvidableError
 
