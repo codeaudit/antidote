@@ -1,5 +1,7 @@
 from typing import Any, Callable, List
 
+from antidote._internal.utils import SlotReprMixin
+
 from .base import Provider
 from ..container import Dependency, Instance
 from ..exceptions import DependencyNotProvidableError, GetterNamespaceConflict
@@ -69,7 +71,7 @@ class GetterProvider(Provider):
                                                          singleton=singleton))
 
 
-class DependencyGetter:
+class DependencyGetter(SlotReprMixin):
     __slots__ = ('namespace', 'func', 'omit_namespace', 'singleton')
 
     def __init__(self,

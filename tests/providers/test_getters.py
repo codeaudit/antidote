@@ -5,6 +5,17 @@ from antidote.exceptions import GetterNamespaceConflict
 from antidote.providers.getters import Dependency, GetterProvider
 
 
+def test_repr():
+    provider = GetterProvider()
+
+    def getter(_):
+        pass
+
+    provider.register(getter=getter, namespace='')
+
+    assert str(getter) in repr(provider)
+
+
 def test_simple_getter():
     provider = GetterProvider()
 

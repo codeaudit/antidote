@@ -9,6 +9,7 @@ from .injection import inject
 from .providers import FactoryProvider, GetterProvider, Provider, TagProvider
 from .providers.factories import Build
 from .providers.tags import Tag, Tagged, TaggedDependencies
+from .helpers import register, factory, getter, provider, attrib
 
 try:
     __version__ = get_distribution(__name__).version
@@ -35,7 +36,10 @@ __all__ = [
     'Tagged',
     'TaggedDependencies',
     'TagProvider',
-    'antidote'
+    'register',
+    'factory',
+    'getter',
+    'provider',
+    'attrib'
 ]
 
-antidote = DependencyManager()

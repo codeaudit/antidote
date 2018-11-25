@@ -1,21 +1,9 @@
-import weakref
 from typing import Any, Callable, Iterable, Mapping, Sequence, Union, cast
 
-from ._internal.helpers import prepare_callable, prepare_class
-from .container import DependencyContainer
-from .providers import FactoryProvider, GetterProvider, Provider
-from .providers.tags import Tag, TagProvider
-
-
-def new_container(providers=(FactoryProvider, GetterProvider, TagProvider)
-                  ) -> DependencyContainer:
-    container = DependencyContainer()
-    container[DependencyContainer] = weakref.proxy(container)
-
-    for p in providers:
-        provider(p, container=container)
-
-    return container
+from .._internal.helpers import prepare_callable, prepare_class
+from ..container import DependencyContainer
+from ..providers import FactoryProvider, GetterProvider, Provider
+from ..providers.tags import Tag, TagProvider
 
 
 def register(class_: type = None,

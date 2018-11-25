@@ -1,9 +1,6 @@
-import functools
-
 import pytest
 
-from antidote import (DependencyContainer, DependencyInstantiationError,
-                      FactoryProvider, TagProvider)
+from antidote import (DependencyContainer, FactoryProvider, TagProvider)
 from antidote.helpers import factory
 
 
@@ -72,25 +69,6 @@ def test_class_return_type_hint(container):
     assert isinstance(container[AnotherService], AnotherService)
     # singleton by default
     assert container[AnotherService] is container[AnotherService]
-
-
-def test_function_non_singleton(container):
-    @factory(singleton=False, container=container)
-    def build() -> Service:
-        return Service()
-
-    assert isinstance(container[Service], Service)
-    assert container[Service] is not container[Service]
-
-
-def test_class_non_singleton(container):
-    @factory(singleton=False, container=container)
-    class ServiceFactory:
-        def __call__(self) -> Service:
-            return Service()
-
-    assert isinstance(container[Service], Service)
-    assert container[Service] is not container[Service]
 
 
 def test_missing_dependency_id(container):

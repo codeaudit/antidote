@@ -1,7 +1,8 @@
 import pytest
+from antidote import DependencyNotProvidableError
 
-from antidote import (DependencyContainer, FactoryProvider, GetterProvider, TagProvider)
-from antidote.helpers import factory, getter, register
+from antidote.providers import Provider
+from antidote.helpers import factory, getter, new_container, register, provider
 from antidote.injection import inject, wire
 
 
@@ -23,10 +24,7 @@ class SuperService:
 
 @pytest.fixture()
 def container():
-    c = DependencyContainer()
-    c.providers[FactoryProvider] = FactoryProvider()
-    c.providers[GetterProvider] = GetterProvider()
-    c.providers[TagProvider] = TagProvider(container=c)
+    c = new_container()
 
     c.update({cls: cls() for cls in [Service, AnotherService, YetAnotherService]})
     c.update(dict(service=object(),
@@ -74,6 +72,17 @@ class C3(DummyMixin):
         return MyService(service, another_service)
 
 
+class MyProvider(Provider, DummyMixin):
+    def __init__(self,
+                 service: Service,
+                 another_service=None):
+        self.service = service
+        self.another_service = another_service
+
+    def __antidote_provide__(self, dependency):
+        raise DependencyNotProvidableError(dependency)
+
+
 def f1(service: Service, another_service=None) -> MyService:
     return MyService(service, another_service)
 
@@ -91,8 +100,8 @@ def wire_(class_=None, auto_wire=True, **kwargs):
 
 wire_.__name__ = 'wire'
 
-
 class_one_inj_tests = [
+    [provider, MyProvider],
     [wire_, MyService],
     [wire_, C1],
     [wire_, C3],

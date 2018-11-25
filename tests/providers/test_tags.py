@@ -5,6 +5,15 @@ from antidote.exceptions import DuplicateTagError
 from antidote.providers.tags import Tag, TagProvider, Tagged, TaggedDependencies
 
 
+def test_repr():
+    provider = TagProvider(DependencyContainer())
+
+    x = object()
+    provider.register(x, [Tag(name='tag')])
+
+    assert str(x) in repr(provider)
+
+
 def test_duplicate_tag_error():
     provider = TagProvider(DependencyContainer())
 
