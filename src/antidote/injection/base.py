@@ -168,6 +168,10 @@ def _generate_injection_blueprint(func: Callable,
         raise ValueError('Only a mapping or a iterable is supported for '
                          'arg_map, not {!r}'.format(arg_map))
 
+    arg_to_dependency = {k: v
+                         for k, v in arg_to_dependency.items()
+                         if v is not None}
+
     if use_names is False:
         use_names = set()
     elif use_names is True:
