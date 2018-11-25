@@ -93,9 +93,14 @@ class DependencyManager:
             auto_wire = self.auto_wire
 
         def register_class(cls):
-            return register(cls, singleton, auto_wire, arg_map, use_names,
-                            use_type_hints,
-                            tags, self.container)
+            return register(cls,
+                            singleton=singleton,
+                            auto_wire=auto_wire,
+                            arg_map=arg_map,
+                            use_names=use_names,
+                            use_type_hints=use_type_hints,
+                            tags=tags,
+                            container=self.container)
 
         return class_ and register_class(class_) or register_class
 
@@ -114,8 +119,15 @@ class DependencyManager:
             auto_wire = self.auto_wire
 
         def register_factory(obj):
-            return factory(obj, dependency_id, auto_wire, singleton, arg_map, use_names,
-                           use_type_hints, build_subclasses, tags, self.container)
+            return factory(obj,
+                           dependency_id=dependency_id,
+                           singleton=singleton,
+                           auto_wire=auto_wire,
+                           arg_map=arg_map,
+                           use_names=use_names,
+                           use_type_hints=use_type_hints,
+                           tags=tags,
+                           container=self.container)
 
         return func and register_factory(func) or register_factory
 
@@ -201,14 +213,19 @@ class DependencyManager:
             auto_wire = self.auto_wire
 
         def register_provider(cls):
-            return provider(cls, auto_wire, arg_map, use_names, use_type_hints,
-                            self.container)
+            return provider(cls,
+                            auto_wire=auto_wire,
+                            arg_map=arg_map,
+                            use_names=use_names,
+                            use_type_hints=use_type_hints,
+                            container=self.container)
 
         return class_ and register_provider(class_) or register_provider
 
     def getter(self,
                func: Callable[[str], Any] = None,
                namespace: str = None,
+               singleton: bool = True,
                omit_namespace: bool = None,
                auto_wire: Union[bool, Iterable[str]] = None,
                arg_map: Union[Mapping, Sequence] = None,
@@ -216,8 +233,15 @@ class DependencyManager:
                use_type_hints: Union[bool, Iterable[str]] = None,
                ) -> Callable:
         def register_getter(obj):
-            return getter(obj, namespace, omit_namespace, auto_wire, arg_map,
-                          use_names, use_type_hints, self.container)
+            return getter(obj,
+                          namespace=namespace,
+                          omit_namespace=omit_namespace,
+                          singleton=singleton,
+                          auto_wire=auto_wire,
+                          arg_map=arg_map,
+                          use_names=use_names,
+                          use_type_hints=use_type_hints,
+                          container=self.container)
 
         return func and register_getter(func) or register_getter
 

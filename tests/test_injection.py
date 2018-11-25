@@ -78,25 +78,24 @@ def f1(service: Service, another_service=None) -> MyService:
     return MyService(service, another_service)
 
 
-def mk_wire(*methods):
-    def wire_(class_=None, auto_wire=True, **kwargs):
-        if auto_wire is True:
-            m = tuple(methods)
-        elif auto_wire is False:
-            m = []
-        else:
-            m = auto_wire
+def wire_(class_=None, auto_wire=True, **kwargs):
+    if auto_wire is True:
+        m = None
+    elif auto_wire is False:
+        m = []
+    else:
+        m = auto_wire
 
-        return wire(class_=class_, methods=m, **kwargs)
+    return wire(class_=class_, methods=m, **kwargs)
 
-    wire_.__name__ = 'wire'
-    return wire_
+
+wire_.__name__ = 'wire'
 
 
 class_one_inj_tests = [
-    [mk_wire('__init__'), MyService],
-    [mk_wire('__init__', '__call__'), C1],
-    [mk_wire('__init__', '__call__'), C3],
+    [wire_, MyService],
+    [wire_, C1],
+    [wire_, C3],
     [register, MyService],
     [factory, C1],
     [factory, C3],
@@ -105,7 +104,7 @@ class_one_inj_tests = [
 ]
 
 class_two_inj_tests = [
-    [mk_wire('__init__', '__call__'), C2],
+    [wire_, C2],
     [factory, C2],
     [getter, C2],
 ]
@@ -163,7 +162,7 @@ def test_complex_wiring(container, instance: DummyMixin):
     assert instance.method() is container[YetAnotherService]
 
 
-@parametrize_injection(class_tests, lazy=True, use_type_hints=False)
+@parametrize_injection(class_tests, lazy=True, auto_wire=False)
 def test_no_wiring(container, create_instance):
     with pytest.raises(TypeError):
         create_instance()

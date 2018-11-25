@@ -76,3 +76,18 @@ def test_namespace_conflict():
 
     with pytest.raises(GetterNamespaceConflict):
         provider.register(lambda _: None, namespace='tes')
+
+
+def test_singleton():
+    provider = GetterProvider()
+
+    provider.register(lambda _: object(), namespace='default')
+    assert True is provider.__antidote_provide__(Dependency('default')).singleton
+
+    provider.register(lambda _: object(), namespace='singleton', singleton=True)
+    assert True is provider.__antidote_provide__(Dependency('singleton')).singleton
+
+    provider.register(lambda _: object(), namespace='unique', singleton=False)
+    assert False is provider.__antidote_provide__(Dependency('unique')).singleton
+
+

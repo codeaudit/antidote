@@ -31,7 +31,8 @@ class GetterProvider(Provider):
             for getter in self._dependency_getters:
                 if dependency.id.startswith(getter.namespace):
                     try:
-                        return Instance(getter(dependency.id), singleton=True)
+                        return Instance(getter(dependency.id),
+                                        singleton=getter.singleton)
                     except LookupError:
                         break
 
@@ -40,7 +41,8 @@ class GetterProvider(Provider):
     def register(self,
                  getter: Callable[[str], Any],
                  namespace: str,
-                 omit_namespace: bool = None):
+                 omit_namespace: bool = False,
+                 singleton: bool = True):
         """
         Register parameters with its getter.
 
@@ -54,7 +56,6 @@ class GetterProvider(Provider):
                 dependency name which is given to the getter. Defaults to False.
 
         """
-        omit_namespace = omit_namespace if omit_namespace is not None else False
         if not isinstance(namespace, str):
             raise ValueError("prefix must be a string")
 
@@ -64,19 +65,22 @@ class GetterProvider(Provider):
 
         self._dependency_getters.append(DependencyGetter(func=getter,
                                                          namespace=namespace,
-                                                         omit_namespace=omit_namespace))
+                                                         omit_namespace=omit_namespace,
+                                                         singleton=singleton))
 
 
 class DependencyGetter:
-    __slots__ = ('namespace', 'func', 'omit_namespace')
+    __slots__ = ('namespace', 'func', 'omit_namespace', 'singleton')
 
     def __init__(self,
                  func: Callable[[str], Any],
                  namespace: str,
-                 omit_namespace: bool):
+                 omit_namespace: bool,
+                 singleton: bool):
         self.func = func
         self.namespace = namespace
         self.omit_namespace = omit_namespace
+        self.singleton = singleton
 
     def __call__(self, name):
         if self.omit_namespace:

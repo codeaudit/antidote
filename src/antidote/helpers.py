@@ -19,6 +19,7 @@ def new_container(providers=(FactoryProvider, GetterProvider, TagProvider)
 
 
 def register(class_: type = None,
+             *,
              singleton: bool = True,
              auto_wire: Union[bool, Iterable[str]] = True,
              arg_map: Union[Mapping, Sequence] = None,
@@ -79,6 +80,7 @@ def register(class_: type = None,
 
 
 def factory(func: Callable = None,
+            *,
             dependency_id: Any = None,
             auto_wire: Union[bool, Iterable[str]] = True,
             singleton: bool = True,
@@ -155,6 +157,7 @@ def factory(func: Callable = None,
 
 
 def provider(class_: type = None,
+             *,
              auto_wire: Union[bool, Iterable[str]] = True,
              arg_map: Union[Mapping, Sequence] = None,
              use_names: Union[bool, Iterable[str]] = None,
@@ -205,6 +208,8 @@ def provider(class_: type = None,
 
 
 def getter(func: Callable[[str], Any] = None,
+           *,
+           singleton: bool = True,
            namespace: str = None,
            omit_namespace: bool = None,
            auto_wire: Union[bool, Iterable[str]] = True,
@@ -250,6 +255,8 @@ def getter(func: Callable[[str], Any] = None,
             namespace = obj.__name__ + ":"
             omit_namespace = omit_namespace if omit_namespace is not None else True
 
+        omit_namespace = omit_namespace if omit_namespace is not None else False
+
         obj, getter_, _ = prepare_callable(obj,
                                            auto_wire=auto_wire,
                                            arg_map=arg_map,
@@ -260,7 +267,8 @@ def getter(func: Callable[[str], Any] = None,
         getter_provider = cast(GetterProvider, container.providers[GetterProvider])
         getter_provider.register(getter=getter_,
                                  namespace=namespace,
-                                 omit_namespace=omit_namespace)
+                                 omit_namespace=omit_namespace,
+                                 singleton=singleton)
 
         return obj
 
