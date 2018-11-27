@@ -33,7 +33,6 @@ else:
         assert container[Service] is test.service
         assert container['parameter'] is test.parameter
 
-
     def test_invalid_attrib(container):
         @attr.s
         class BrokenTest:

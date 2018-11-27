@@ -94,5 +94,5 @@ def test_singleton(container, dependency_id):
 
 
 @parametrize_registration(singleton_tests, singleton=False)
-def test_singleton(container, dependency_id):
+def test_not_singleton(container, dependency_id):
     assert container[dependency_id] is not container[dependency_id]

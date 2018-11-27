@@ -7,6 +7,7 @@ from typing import (Callable, Dict, Iterable, Mapping, Optional, Sequence,
 import wrapt
 
 from .._internal.argspec import get_arguments_specification
+from .._internal.container import get_global_container
 from .._internal.utils import SlotReprMixin
 from ..container import DependencyContainer
 from ..exceptions import DependencyNotFoundError, UndefinedContainerError
@@ -70,6 +71,9 @@ def inject(func: Callable = None,
         use_type_hints: Whether the type hints should be used to find for
             a dependency. An iterable of names may also be provided to
             restrict this to a subset of the arguments.
+        container: :py:class:~.container.base.DependencyContainer` from which
+            the dependencies should be retrieved. Defaults to the global
+            container if it is defined.
 
     Returns:
         The decorator to be applied or the injected function if the
@@ -81,7 +85,7 @@ def inject(func: Callable = None,
         return wrapt.FunctionWrapper(
             wrapped=f,
             wrapper=Injector(
-                container=container,
+                container=container or get_global_container(),
                 blueprint=_generate_injection_blueprint(
                     func=f,
                     arg_map=arg_map,

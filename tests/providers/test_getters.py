@@ -100,5 +100,3 @@ def test_singleton():
 
     provider.register(lambda _: object(), namespace='unique', singleton=False)
     assert False is provider.__antidote_provide__(Dependency('unique')).singleton
-
-

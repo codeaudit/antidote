@@ -4,6 +4,7 @@ from .._internal.helpers import prepare_callable, prepare_class
 from ..container import DependencyContainer
 from ..providers import FactoryProvider, GetterProvider, Provider
 from ..providers.tags import Tag, TagProvider
+from .._internal.container import get_global_container
 
 
 def register(class_: type = None,
@@ -40,11 +41,15 @@ def register(class_: type = None,
             (the tags name) or :py:class:`~.providers.tags.Tag`. All
             dependencies with a specific tag can then be retrieved with
             a :py:class:`~.providers.tags.Tagged`.
+        container: :py:class:~.container.base.DependencyContainer` to which the
+            dependency should be attached. Defaults to the global container if
+            it is defined.
 
     Returns:
         The class or the class decorator.
 
     """
+    container = container or get_global_container()
 
     def register_class(cls):
         cls = prepare_class(cls,
@@ -85,8 +90,8 @@ def factory(func: Callable = None,
         func: Callable which builds the dependency.
         dependency_id: Id of the dependency. Defaults to the return type of
             :code:`func` if specified.
-        singleton: If True the dependency_provider is called only once.
-            Otherwise it is called anew every time.
+        singleton: If True, `func` will only be called once. If not it is
+            called at each injection.
         auto_wire: If :code:`func` is a function, its dependencies are
             injected if True. Should :code:`func` be a class with
             :py:func:`__call__`, dependencies of :code:`__init__()` and
@@ -111,11 +116,15 @@ def factory(func: Callable = None,
             (the tags name) or :py:class:`~.providers.tags.Tag`. All
             dependencies with a specific tag can then be retrieved with
             a :py:class:`~.providers.tags.Tagged`.
+        container: :py:class:~.container.base.DependencyContainer` to which the
+            dependency should be attached. Defaults to the global container if
+            it is defined.
 
     Returns:
         object: The dependency_provider
 
     """
+    container = container or get_global_container()
 
     def register_factory(obj):
         nonlocal dependency_id
@@ -172,10 +181,14 @@ def provider(class_: type = None,
             a dependency. An iterable of names may also be provided to
             restrict this to a subset of the arguments. Annotations are
             overridden, but not the arg_map.
+        container: :py:class:~.container.base.DependencyContainer` to which the
+            dependency should be attached. Defaults to the global container if
+            it is defined.
 
     Returns:
         the providers's class or the class decorator.
     """
+    container = container or get_global_container()
 
     def register_provider(cls):
         if not issubclass(cls, Provider):
@@ -213,6 +226,8 @@ def getter(func: Callable[[str], Any] = None,
         func: Function used to retrieve a requested dependency which will
             be given as an argument. If the dependency cannot be provided,
             it should raise a :py:exc:`LookupError`.
+        singleton: If True, `func` will only be called once. If not it is
+            called at each injection.
         namespace: Used to identity which getter should be used with a
             dependency, as such they have to be mutually exclusive.
         omit_namespace: Whether or the namespace should be removed from the
@@ -231,10 +246,14 @@ def getter(func: Callable[[str], Any] = None,
             a dependency. An iterable of names may also be provided to
             restrict this to a subset of the arguments. Annotations are
             overridden, but not the arg_map.
+        container: :py:class:~.container.base.DependencyContainer` to which the
+            dependency should be attached. Defaults to the global container if
+            it is defined.
 
     Returns:
         getter callable or decorator.
     """
+    container = container or get_global_container()
 
     def register_getter(obj):
         nonlocal namespace, omit_namespace

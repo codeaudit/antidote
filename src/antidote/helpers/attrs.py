@@ -1,6 +1,7 @@
 from typing import Any, get_type_hints
 
 from ..container import DependencyContainer
+from .._internal.container import get_global_container
 
 
 def attrib(dependency_id: Any = None,
@@ -14,12 +15,17 @@ def attrib(dependency_id: Any = None,
             annotation.
         use_name: If True, use the attribute name as the dependency id
             overriding any annotations.
+        container: :py:class:~.container.base.DependencyContainer` to which the
+            dependency should be attached. Defaults to the global container if
+            it is defined.
         **attr_kwargs: Keyword arguments passed on to attr.ib()
 
     Returns:
         object: attr.Attribute with a attr.Factory.
 
     """
+    container = container or get_global_container()
+
     try:
         import attr
     except ImportError:

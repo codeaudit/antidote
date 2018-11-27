@@ -35,7 +35,7 @@ setup(
     url='https://github.com/Finistere/antidote',
     packages=find_packages('src'),
     package_dir={'': 'src'},
-    install_requires=[],
+    install_requires=["wrapt"],
     extras_require={
         ":python_version<'3.5'": ["typing"],
         "docs": [
@@ -46,7 +46,6 @@ setup(
         ],
         "tests": [
             "pytest",
-            "pytest-cov",
             "hypothesis"
         ]
     },

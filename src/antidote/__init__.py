@@ -1,19 +1,20 @@
-from pkg_resources import DistributionNotFound, get_distribution
+import typing as _t
+
+import pkg_resources as _pkg_resources
 
 from .container import Dependency, DependencyContainer, Instance
 from .exceptions import (AntidoteError, DependencyCycleError, DependencyDuplicateError,
                          DependencyInstantiationError, DependencyNotFoundError,
                          DependencyNotProvidableError)
-from .manager import DependencyManager
+from .helpers import attrib, factory, getter, provider, register, context
 from .injection import inject
 from .providers import FactoryProvider, GetterProvider, Provider, TagProvider
 from .providers.factories import Build
 from .providers.tags import Tag, Tagged, TaggedDependencies
-from .helpers import register, factory, getter, provider, attrib
 
 try:
-    __version__ = get_distribution(__name__).version
-except DistributionNotFound:  # pragma: no cover
+    __version__ = _pkg_resources.get_distribution(__name__).version
+except _pkg_resources.DistributionNotFound:  # pragma: no cover
     # package is not installed
     pass
 
@@ -22,7 +23,6 @@ __all__ = [
     'inject',
     'Instance',
     'DependencyContainer',
-    'DependencyManager',
     'AntidoteError',
     'DependencyNotProvidableError',
     'DependencyNotFoundError',
@@ -40,6 +40,8 @@ __all__ = [
     'factory',
     'getter',
     'provider',
-    'attrib'
+    'attrib',
+    'context'
 ]
 
+global_container = None  # type: _t.Optional[DependencyContainer]

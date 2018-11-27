@@ -1,9 +1,12 @@
+import contextlib
 import weakref
+from typing import Iterable, Mapping
 
-from ..container import DependencyContainer
+from .registration import provider
+from ..container import DependencyContainer, ProxyContainer
 from ..providers import FactoryProvider, GetterProvider
 from ..providers.tags import TagProvider
-from .registration import provider
+from .._internal.container import set_global_container, get_global_container
 
 
 def new_container(providers=(FactoryProvider, GetterProvider, TagProvider)
@@ -15,3 +18,48 @@ def new_container(providers=(FactoryProvider, GetterProvider, TagProvider)
         provider(p, container=container)
 
     return container
+
+
+@contextlib.contextmanager
+def context(dependencies: Mapping = None,
+            include: Iterable = None,
+            exclude: Iterable = None,
+            missing: Iterable = None):
+    """
+    Creates a context within one can control which of the defined
+    dependencies available or not. Any changes will be discarded at the
+    end.
+
+    >>> import antidote
+    >>> with antidote.context(include=[]):
+    ...     # Your code isolated from every other dependencies
+    ...     antidote.container[DependencyContainer]
+    <... DependencyContainer ...>
+
+    The :py:class:`~antidote.DependencyInjector` and the
+    :py:class:`~antidote.DependencyContainer` will still be accessible.
+
+    Args:
+        dependencies: Dependencies instances used to override existing ones
+            in the new context.
+        include: Iterable of dependencies to include. If None
+            everything is accessible.
+        exclude: Iterable of dependencies to exclude.
+        missing: Iterable of dependencies which should raise a
+            :py:exc:`~.exceptions.DependencyNotFoundError` even if a
+            provider could instantiate them.
+
+    """
+    original_container = get_global_container() or new_container()
+    container = ProxyContainer(container=original_container,
+                               dependencies=dependencies,
+                               include=include,
+                               exclude=exclude,
+                               missing=missing)
+    container[DependencyContainer] = weakref.proxy(container)
+
+    set_global_container(container)
+    try:
+        yield
+    finally:
+        set_global_container(original_container)
