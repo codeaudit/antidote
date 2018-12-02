@@ -1,6 +1,6 @@
 import threading
 from collections import OrderedDict
-from typing import Any, Dict, TYPE_CHECKING, Type
+from typing import Any, Dict, TYPE_CHECKING, Type, Union, Iterable, cast
 
 from .stack import InstantiationStack
 from .._internal.utils import SlotReprMixin
@@ -112,9 +112,10 @@ class Dependency(SlotReprMixin):
     If no additional arguments are provided it is equivalent to the unwrapped
     dependency id.
 
-    >>> from antidote import antidote, Dependency
-    >>> antidote.container['name'] = 'Antidote'
-    >>> antidote.container[Dependency('name')]
+    >>> from antidote import DependencyContainer, Dependency
+    >>> container = DependencyContainer()
+    >>> container['name'] = 'Antidote'
+    >>> container[Dependency('name')]
     'Antidote'
 
     """

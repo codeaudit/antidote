@@ -1,16 +1,41 @@
+import inspect
+import itertools
 from typing import Any, Callable, Iterable, Mapping, Sequence, Union, cast
 
+from .._internal.container import get_global_container
 from .._internal.helpers import prepare_callable, prepare_class
 from ..container import DependencyContainer
+from ..injection import inject
 from ..providers import FactoryProvider, GetterProvider, Provider
 from ..providers.tags import Tag, TagProvider
-from .._internal.container import get_global_container
+
+
+def include():
+    pass
+
+
+def procure():
+    """
+    @procure
+    class A:
+
+    @inject
+    def factory
+
+    @hook
+    def hook(obj):
+        factory(factory, obj)
+    Returns:
+
+    """
+    pass
 
 
 def register(class_: type = None,
              *,
              singleton: bool = True,
-             auto_wire: Union[bool, Iterable[str]] = True,
+             factory: Union[Callable, str] = None,
+             auto_wire: Union[bool, Iterable[str]] = None,
              arg_map: Union[Mapping, Sequence] = None,
              use_names: Union[bool, Iterable[str]] = None,
              use_type_hints: Union[bool, Iterable[str]] = None,
@@ -52,6 +77,10 @@ def register(class_: type = None,
     container = container or get_global_container()
 
     def register_class(cls):
+        nonlocal auto_wire, factory
+        if auto_wire is None:
+            auto_wire = not factory
+
         cls = prepare_class(cls,
                             auto_wire=auto_wire,
                             arg_map=arg_map,
@@ -59,9 +88,16 @@ def register(class_: type = None,
                             use_type_hints=use_type_hints,
                             container=container)
 
+        takes_dependency_id = callable(factory)
+        if isinstance(factory, str):
+            # TODO: check if classmethod
+            factory = getattr(cls, factory)
+
         factory_provider = cast(FactoryProvider, container.providers[FactoryProvider])
-        factory_provider.register(dependency_id=cls, factory=cls,
-                                  singleton=singleton)
+        factory_provider.register(dependency_id=cls,
+                                  factory=factory if factory is not None else cls,
+                                  singleton=singleton,
+                                  takes_dependency_id=takes_dependency_id)
 
         if tags is not None:
             tag_provider = cast(TagProvider, container.providers[TagProvider])
@@ -75,12 +111,12 @@ def register(class_: type = None,
 def factory(func: Callable = None,
             *,
             dependency_id: Any = None,
+            dependency_ids: Iterable = None,
             auto_wire: Union[bool, Iterable[str]] = True,
             singleton: bool = True,
             arg_map: Union[Mapping, Sequence] = None,
             use_names: Union[bool, Iterable[str]] = None,
             use_type_hints: Union[bool, Iterable[str]] = None,
-            build_subclasses: bool = False,
             tags: Iterable[Union[str, Tag]] = None,
             container: DependencyContainer = None
             ) -> Callable:
@@ -109,9 +145,6 @@ def factory(func: Callable = None,
         use_type_hints: Whether the type hints should be used to find for
             a dependency. An iterable of names may also be provided to
             restrict this to a subset of the arguments.
-        build_subclasses: If True, subclasses will also be build with this
-            factory. If multiple factories are defined, the first in the
-            MRO is used.
         tags: Iterable of tags to be applied. Those must be either strings
             (the tags name) or :py:class:`~.providers.tags.Tag`. All
             dependencies with a specific tag can then be retrieved with
@@ -126,8 +159,11 @@ def factory(func: Callable = None,
     """
     container = container or get_global_container()
 
+    if dependency_ids is not None and dependency_id is not None:
+        raise ValueError("Cannot define both dependency_ids and dependency_id")
+
     def register_factory(obj):
-        nonlocal dependency_id
+        nonlocal dependency_id, dependency_ids
         obj, factory_, return_type_hint = prepare_callable(
             obj,
             auto_wire=auto_wire,
@@ -138,15 +174,23 @@ def factory(func: Callable = None,
         )
 
         dependency_id = dependency_id or return_type_hint
-        factory_provider = cast(FactoryProvider, container.providers[FactoryProvider])
-        factory_provider.register(factory=factory_,
-                                  singleton=singleton,
-                                  dependency_id=dependency_id,
-                                  build_subclasses=build_subclasses)
+        dependency_ids = list(dependency_ids) if dependency_ids is not None else []
+
+        if not dependency_ids and not dependency_id:
+            raise ValueError("No dependency ID defined.")
+
+        for id_ in itertools.chain(dependency_ids, [dependency_id]):
+            factory_provider = cast(FactoryProvider,
+                                    container.providers[FactoryProvider])
+            factory_provider.register(factory=factory_,
+                                      singleton=singleton,
+                                      dependency_id=id_,
+                                      takes_dependency_id=len(dependency_ids) > 0)
 
         if tags is not None:
             tag_provider = cast(TagProvider, container.providers[TagProvider])
-            tag_provider.register(dependency_id, tags)
+            for id_ in itertools.chain(dependency_ids, [dependency_id]):
+                tag_provider.register(id_, tags)
 
         return obj
 

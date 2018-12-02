@@ -3,7 +3,7 @@ import typing as _t
 import pkg_resources as _pkg_resources
 
 from .container import Dependency, DependencyContainer, Instance
-from .exceptions import (AntidoteError, DependencyCycleError, DependencyDuplicateError,
+from .exceptions import (AntidoteError, DependencyCycleError, DuplicateDependencyError,
                          DependencyInstantiationError, DependencyNotFoundError,
                          DependencyNotProvidableError)
 from .helpers import attrib, factory, getter, provider, register, context
@@ -26,7 +26,7 @@ __all__ = [
     'AntidoteError',
     'DependencyNotProvidableError',
     'DependencyNotFoundError',
-    'DependencyDuplicateError',
+    'DuplicateDependencyError',
     'DependencyCycleError',
     'DependencyInstantiationError',
     'Dependency',

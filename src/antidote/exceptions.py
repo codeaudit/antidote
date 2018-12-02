@@ -6,7 +6,7 @@ class UndefinedContainerError(AntidoteError):
     """ Raised whenever injection is tried without container """
 
 
-class DependencyDuplicateError(AntidoteError):
+class DuplicateDependencyError(AntidoteError):
     """
     A dependency already exists with the same id.
     *May* be raised by providers.

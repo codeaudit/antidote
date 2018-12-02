@@ -3,7 +3,7 @@ from typing import Any, Callable, Dict, Tuple
 from .base import Provider
 from .._internal.utils import SlotReprMixin
 from ..container import Dependency, Instance
-from ..exceptions import DependencyDuplicateError, DependencyNotProvidableError
+from ..exceptions import DependencyNotProvidableError, DuplicateDependencyError
 
 
 class FactoryProvider(Provider):
@@ -12,19 +12,15 @@ class FactoryProvider(Provider):
     to find a matching factory and builds it. Subclasses may also be built.
     """
 
-    def __init__(self, auto_wire: bool = True) -> None:
-        self.auto_wire = auto_wire
+    def __init__(self) -> None:
         self._factories = dict()  # type: Dict[Any, DependencyFactory]
-        self._subclass_factories = dict()  # type: Dict[Any, DependencyFactory]
 
     def __repr__(self):
         return (
-            "{}(auto_wire={!r}, factories={!r}, subclass_factories={!r})"
+            "{}(factories={!r})"
         ).format(
             type(self).__name__,
-            self.auto_wire,
             tuple(self._factories.keys()),
-            tuple(self._subclass_factories.keys())
         )
 
     def __antidote_provide__(self, dependency: Dependency) -> Instance:
@@ -42,14 +38,7 @@ class FactoryProvider(Provider):
         try:
             factory = self._factories[dependency.id]
         except KeyError:
-            for cls in getattr(dependency.id, '__mro__', []):
-                try:
-                    factory = self._subclass_factories[cls]
-                    break
-                except KeyError:
-                    pass
-            else:
-                raise DependencyNotProvidableError(dependency)
+            raise DependencyNotProvidableError(dependency)
 
         if isinstance(dependency, Build):
             args = dependency.args
@@ -68,7 +57,7 @@ class FactoryProvider(Provider):
                  dependency_id,
                  factory: Callable,
                  singleton: bool = True,
-                 build_subclasses: bool = False):
+                 takes_dependency_id: bool = False):
         """
         Register a factory for a dependency.
 
@@ -77,25 +66,22 @@ class FactoryProvider(Provider):
             factory: Callable used to instantiate the dependency.
             singleton: Whether the dependency should be mark as singleton or
                 not for the :py:class:`~..container.DependencyContainer`.
-            build_subclasses: If True, subclasses will also be build with this
+            takes_dependency_id: If True, subclasses will also be build with this
                 factory. If multiple factories are defined, the first in the
                 MRO is used.
         """
         if not callable(factory):
             raise ValueError("The `factory` must be callable.")
 
-        if not dependency_id:
+        if dependency_id is None:
             raise ValueError("`dependency_id` parameter must be specified.")
 
         dependency_factory = DependencyFactory(factory=factory,
                                                singleton=singleton,
-                                               takes_dependency_id=build_subclasses)
+                                               takes_dependency_id=takes_dependency_id)
 
         if dependency_id in self._factories:
-            raise DependencyDuplicateError(dependency_id)
-
-        if build_subclasses:
-            self._subclass_factories[dependency_id] = dependency_factory
+            raise DuplicateDependencyError(dependency_id)
 
         self._factories[dependency_id] = dependency_factory
 
@@ -120,7 +106,7 @@ class DependencyFactory(SlotReprMixin):
     def __call__(self, *args, **kwargs):
         return self.factory(*args, **kwargs)
 
-
+classmethod
 class Build(Dependency):
     __slots__ = ('id', 'args', 'kwargs')
 

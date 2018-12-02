@@ -1,4 +1,5 @@
 import collections.abc as c_abc
+import inspect
 import typing
 from itertools import islice
 from typing import (Callable, Dict, Iterable, Mapping, Optional, Sequence,
@@ -42,7 +43,7 @@ class Injector(SlotReprMixin):
             self.blueprint,
             args,
             kwargs,
-            skip_first=instance is not None
+            skip_first=instance is not None and not inspect.isclass(instance)
         )
 
         return wrapped(*args, **kwargs)

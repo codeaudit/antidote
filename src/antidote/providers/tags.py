@@ -46,10 +46,15 @@ class Tagged(Dependency):
 
 
 class TaggedDependencies(Generic[T]):
-    def __init__(self, data: Iterable[Tuple[Callable[..., T], Tag]]):
-        getters, self._tags = zip(*data)
-        self._reverse_dependency_getters = deque(getters)
-        self._dependency_instances = []  # type: List[T]
+    def __init__(self, dependencies: Iterable[Tuple[Callable[..., T], Tag]]):
+        self._instances = []   # type: List[T]
+        self._tags = []   # type: List[Tag]
+        self._dependencies = deque()
+
+        for dependency, tag in dependencies:
+            self._dependencies.append(dependency)
+            self._tags.append(tag)
+
         self._lock = threading.Lock()
 
     def __iter__(self) -> Iterable[T]:
@@ -65,22 +70,25 @@ class TaggedDependencies(Generic[T]):
         return iter(self._tags)
 
     def dependencies(self) -> Iterator[T]:
-        if self._reverse_dependency_getters:
-            for i in range(len(self._tags)):
-                try:
-                    yield self._dependency_instances[i]
-                except IndexError:
-                    with self._lock:
-                        try:
-                            getter = self._reverse_dependency_getters.popleft()
-                        except IndexError:
-                            pass
-                        else:
-                            self._dependency_instances.append(getter())
-                    yield self._dependency_instances[i]
-        else:
-            for dependency in self._dependency_instances:
-                yield dependency
+        i = -1
+        for i, dependency in enumerate(self._instances):
+            yield dependency
+
+        i += 1
+
+        while i < len(self):
+            try:
+                yield self._instances[i]
+            except IndexError:
+                with self._lock:
+                    try:
+                        getter = self._dependencies.popleft()
+                    except IndexError:
+                        pass
+                    else:
+                        self._instances.append(getter())
+                yield self._instances[i]
+            i += 1
 
 
 class TagProvider(Provider):
@@ -95,15 +103,16 @@ class TagProvider(Provider):
         )
 
     def __antidote_provide__(self, dependency: Dependency) -> Instance:
-        if isinstance(dependency, Tagged) \
-                and dependency.name in self._tagged_dependencies:
+        if isinstance(dependency, Tagged):
             return Instance(
-                TaggedDependencies((
-                    ((lambda d=tagged_dependency: self._container[d]), tag)
-                    for tagged_dependency, tag
-                    in self._tagged_dependencies[dependency.name].items()
-                    if dependency.filter(tag)
-                )),
+                TaggedDependencies(
+                    dependencies=(
+                        ((lambda d=tagged_dependency: self._container[d]), tag)
+                        for tagged_dependency, tag
+                        in self._tagged_dependencies.get(dependency.name, {}).items()
+                        if dependency.filter(tag)
+                    ),
+                ),
                 # Tags are by nature dynamic. Whether the returned dependencies
                 # are singletons or not is their decision to take.
                 singleton=False

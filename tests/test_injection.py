@@ -1,9 +1,9 @@
 import pytest
-from antidote import DependencyNotProvidableError
 
-from antidote.providers import Provider
-from antidote.helpers import factory, getter, new_container, register, provider
+from antidote import DependencyInstantiationError, DependencyNotProvidableError
+from antidote.helpers import factory, getter, new_container, provider, register
 from antidote.injection import inject, wire
+from antidote.providers import Provider
 
 
 class Service:
@@ -33,12 +33,12 @@ def container():
     return c
 
 
-class DummyMixin:
+class DummyMethodMixin:
     def method(self, yet_another_service: YetAnotherService):
         return yet_another_service
 
 
-class MyService(DummyMixin):
+class MyService(DummyMethodMixin):
     def __init__(self,
                  service: Service,
                  another_service=None):
@@ -46,7 +46,7 @@ class MyService(DummyMixin):
         self.another_service = another_service
 
 
-class C1(DummyMixin):
+class F1(DummyMethodMixin):
     def __init__(self,
                  service: Service,
                  another_service=None):
@@ -57,7 +57,7 @@ class C1(DummyMixin):
         return MyService(self.service, self.another_service)
 
 
-class C2(DummyMixin):
+class F2(DummyMethodMixin):
     def __init__(self, service: Service):
         self.service = service
 
@@ -65,14 +65,53 @@ class C2(DummyMixin):
         return MyService(self.service, another_service)
 
 
-class C3(DummyMixin):
+class F3(DummyMethodMixin):
     def __call__(self,
                  service: Service,
                  another_service=None) -> MyService:
         return MyService(service, another_service)
 
 
-class MyProvider(Provider, DummyMixin):
+class G1(DummyMethodMixin):
+    def __init__(self,
+                 service: Service,
+                 another_service=None):
+        self.service = service
+        self.another_service = another_service
+
+    def __call__(self, x) -> MyService:
+        return MyService(self.service, self.another_service)
+
+
+class G2(DummyMethodMixin):
+    def __init__(self, service: Service):
+        self.service = service
+
+    def __call__(self, x, another_service=None) -> MyService:
+        return MyService(self.service, another_service)
+
+
+class G3(DummyMethodMixin):
+    def __call__(self,
+                 x,
+                 service: Service,
+                 another_service=None) -> MyService:
+        return MyService(service, another_service)
+
+
+class B1(DummyMethodMixin):
+    def __init__(self, s, a):
+        self.service = s
+        self.another_service = a
+
+    @classmethod
+    def build(cls,
+              service: Service,
+              another_service=None):
+        return cls(service, another_service)
+
+
+class MyProvider(Provider, DummyMethodMixin):
     def __init__(self,
                  service: Service,
                  another_service=None):
@@ -85,6 +124,14 @@ class MyProvider(Provider, DummyMixin):
 
 def f1(service: Service, another_service=None) -> MyService:
     return MyService(service, another_service)
+
+
+def g1(x, service: Service, another_service=None) -> MyService:
+    return MyService(service, another_service)
+
+
+def build(cls, service: Service, another_service=None):
+    return cls(service, another_service)
 
 
 def wire_(class_=None, auto_wire=True, **kwargs):
@@ -100,40 +147,69 @@ def wire_(class_=None, auto_wire=True, **kwargs):
 
 wire_.__name__ = 'wire'
 
+
+def getter_(func=None, **kwargs):
+    return getter(func=func, namespace='my_service', **kwargs)
+
+
+getter_.__name__ = 'getter'
+
+
+def register_build(class_=None, container=None, arg_map=None, use_names=None,
+                   use_type_hints=None, **kwargs):
+    if kwargs.get('auto_wire', True):
+        class_.build = inject(class_.build, container=container, arg_map=arg_map,
+                              use_names=use_names, use_type_hints=use_type_hints)
+    return register(class_, factory='build', container=container, **kwargs)
+
+
+def register_external_build(class_=None, container=None, arg_map=None, use_names=None,
+                            use_type_hints=None, **kwargs):
+    if kwargs.get('auto_wire', True):
+        build_ = inject(build, container=container, arg_map=arg_map,
+                        use_names=use_names, use_type_hints=use_type_hints)
+    else:
+        build_ = build
+    return register(class_,
+                    factory=build_,
+                    container=container,
+                    **kwargs)
+
+
 class_one_inj_tests = [
     [provider, MyProvider],
     [wire_, MyService],
-    [wire_, C1],
-    [wire_, C3],
     [register, MyService],
-    [factory, C1],
-    [factory, C3],
-    [getter, C1],
-    [getter, C3],
+    [factory, F1],
+    [factory, F3],
+    [getter_, G1],
+    [getter_, G3],
 ]
 
 class_two_inj_tests = [
-    [wire_, C2],
-    [factory, C2],
-    [getter, C2],
+    [factory, F2],
+    [getter_, G2],
 ]
 
 class_tests = class_one_inj_tests + class_two_inj_tests
 
 function_tests = [
     [factory, f1],
-    [getter, f1],
+    [getter_, g1],
     [inject, f1],
+    [register_build, B1],
+    [register_external_build, B1],
 ]
 
 all_tests = class_tests + function_tests
 
 
-def parametrize_injection(tests, lazy=False, call_if_callable_class=True,
+def parametrize_injection(tests, lazy=False, return_wrapped=False,
                           **inject_kwargs):
     def decorator(test):
         @pytest.mark.parametrize('wrapper,wrapped', tests)
         def f(container, wrapper, wrapped):
+            original_wrapped = wrapped
             if isinstance(wrapped, type):
                 # helpers do modify the class, so a copy has to be made to
                 # avoid any conflict between the tests.
@@ -142,11 +218,38 @@ def parametrize_injection(tests, lazy=False, call_if_callable_class=True,
                                wrapped.__dict__.copy())
 
             def create():
-                instance = wrapper(container=container, **inject_kwargs)(wrapped)()
-                if isinstance(wrapped, type) and call_if_callable_class:
-                    # Factory classes are callable
-                    return instance() if callable(instance) else instance
-                return instance
+                name = wrapper.__name__
+                inj_kwargs = inject_kwargs.copy()
+
+                if ('getter' in name and original_wrapped is not G1) \
+                        or 'register_external' in name:
+                    try:
+                        if isinstance(inj_kwargs['arg_map'], tuple):
+                            inj_kwargs['arg_map'] = (None, *inj_kwargs['arg_map'])
+                    except KeyError:
+                        pass
+
+                wrapped_ = wrapper(wrapped, container=container, **inj_kwargs)
+
+                if return_wrapped:
+                    if 'register' in name and 'build' in name:
+                        try:
+                            return container[wrapped_]
+                        except DependencyInstantiationError as e:
+                            raise TypeError() from e
+                    else:
+                        return wrapped_()
+
+                if 'register' in name:
+                    return container[wrapped_]
+                elif 'factory' in name:
+                    return container[MyService]
+                elif 'getter' in name:
+                    return container['my_service']
+                elif 'provider' in name:
+                    return container.providers[wrapped_]
+                elif 'inject' in name or 'wire' in name:
+                    return wrapped_()
 
             if lazy:
                 return test(container,
@@ -165,22 +268,28 @@ def test_basic_wiring(container, instance: MyService):
     assert instance.another_service is None
 
 
-@parametrize_injection(class_tests, call_if_callable_class=False,
+@parametrize_injection(class_tests, return_wrapped=True,
                        auto_wire=['__init__', 'method'])
-def test_complex_wiring(container, instance: DummyMixin):
+def test_complex_wiring(container, instance: DummyMethodMixin):
     assert instance.method() is container[YetAnotherService]
 
 
-@parametrize_injection(class_tests, lazy=True, auto_wire=False)
+@parametrize_injection(class_tests, lazy=True, return_wrapped=True,
+                       auto_wire=False)
 def test_no_wiring(container, create_instance):
     with pytest.raises(TypeError):
-        create_instance()
+        instance = create_instance()
+        if callable(instance):
+            instance()
 
 
-@parametrize_injection(all_tests, lazy=True, use_type_hints=False)
+@parametrize_injection(all_tests, lazy=True, return_wrapped=True,
+                       use_type_hints=False)
 def test_no_type_hints(container, create_instance):
     with pytest.raises(TypeError):
-        create_instance()
+        instance = create_instance()
+        if callable(instance):
+            instance()
 
 
 @parametrize_injection(all_tests, use_type_hints=['service'])
@@ -189,11 +298,13 @@ def test_type_hints_only_service(container, instance):
     assert instance.another_service is None
 
 
-@parametrize_injection(all_tests, lazy=True,
+@parametrize_injection(all_tests, lazy=True, return_wrapped=True,
                        use_type_hints=['another_service'])
 def test_type_hints_only_another_service(container, create_instance):
     with pytest.raises(TypeError):
-        create_instance()
+        instance = create_instance()
+        if callable(instance):
+            instance()
 
 
 @parametrize_injection(all_tests,

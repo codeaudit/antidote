@@ -1,7 +1,7 @@
 import pytest
 
 from antidote import (
-    DependencyDuplicateError, DependencyNotProvidableError
+    DuplicateDependencyError, DependencyNotProvidableError
 )
 from antidote.providers.factories import (Dependency, DependencyFactory,
                                           FactoryProvider, Build)
@@ -11,10 +11,6 @@ class Service:
     def __init__(self, *args, **kwargs):
         self.args = args
         self.kwargs = kwargs
-
-
-class ServiceSubclass(Service):
-    pass
 
 
 class AnotherService:
@@ -65,15 +61,11 @@ def test_singleton(provider: FactoryProvider):
     assert provide(Dependency(AnotherService)).singleton is False
 
 
-def test_build_subclasses(provider: FactoryProvider):
-    provider.register(Service, lambda cls: cls(), build_subclasses=True)
+def test_takes_dependency_id(provider: FactoryProvider):
+    provider.register(Service, lambda cls: cls(), takes_dependency_id=True)
 
     assert isinstance(
         provider.__antidote_provide__(Dependency(Service)).item,
-        Service
-    )
-    assert isinstance(
-        provider.__antidote_provide__(Dependency(ServiceSubclass)).item,
         Service
     )
 
@@ -103,8 +95,8 @@ def test_invalid_register_id_null(provider: FactoryProvider):
 def test_duplicate_error(provider: FactoryProvider):
     provider.register(Service, Service)
 
-    with pytest.raises(DependencyDuplicateError):
+    with pytest.raises(DuplicateDependencyError):
         provider.register(Service, Service)
 
-    with pytest.raises(DependencyDuplicateError):
+    with pytest.raises(DuplicateDependencyError):
         provider.register(Service, lambda: Service())

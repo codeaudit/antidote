@@ -45,6 +45,11 @@ def test_provide_tags():
     provider.register('test', ['tag1', Tag('tag2', error=True)])
     provider.register('test2', ['tag2'])
 
+    result = provider.__antidote_provide__(Tagged('xxxxx'))
+    assert isinstance(result, Instance)
+    assert result.singleton is False
+    assert 0 == len(result.item)
+
     result = provider.__antidote_provide__(Tagged('tag1'))
     assert isinstance(result, Instance)
     assert result.singleton is False
@@ -76,10 +81,12 @@ def test_provide_tags():
 def test_tagged_dependencies():
     tag1 = Tag('tag1')
     tag2 = Tag('tag2', dummy=True)
-    t = TaggedDependencies([
-        (lambda: 'test', tag1),
-        (lambda: 'test2', tag2)
-    ])
+    t = TaggedDependencies(
+        dependencies=[
+            (lambda: 'test', tag1),
+            (lambda: 'test2', tag2)
+        ]
+    )
 
     assert {tag1, tag2} == set(t.tags())
     assert {'test', 'test2'} == set(t.dependencies())
