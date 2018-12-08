@@ -1,3 +1,7 @@
+import inspect
+from typing import List
+
+
 class AntidoteError(Exception):
     """ Base class of all errors of antidote. """
 
@@ -25,6 +29,22 @@ class DependencyCycleError(AntidoteError):
     A dependency cycle is found.
     Raised by the container.
     """
+
+    def __init__(self, stack: List):
+        self.stack = stack
+
+    def __repr__(self):
+        return "{}({})".format(
+            type(self).__name__,
+            ' => '.join(map(self._repr, self.stack))
+        )
+
+    @staticmethod
+    def _repr(obj) -> str:
+        if inspect.isclass(obj):
+            return "{}.{}".format(obj.__module__, obj.__name__)
+
+        return repr(obj)
 
 
 class DependencyNotProvidableError(AntidoteError):

@@ -1,8 +1,8 @@
 import pytest
 
-from antidote import DependencyNotProvidableError, Instance
+from antidote import DependencyNotProvidableError, Instance, Dependency
 from antidote.exceptions import GetterNamespaceConflict
-from antidote.providers.getters import Dependency, GetterProvider
+from antidote.providers import GetterProvider
 
 
 def test_repr():
@@ -26,12 +26,11 @@ def test_simple_getter():
 
     provider.register(getter=getter, namespace='')
 
-    assert isinstance(provider.__antidote_provide__(Dependency('y')), Instance)
-    assert data['y'] == provider.__antidote_provide__(Dependency('y')).item
-    assert data['x'] == provider.__antidote_provide__(Dependency('x')).item
+    assert isinstance(provider.provide(Dependency('y')), Instance)
+    assert data['y'] == provider.provide(Dependency('y')).item
+    assert data['x'] == provider.provide(Dependency('x')).item
 
-    with pytest.raises(DependencyNotProvidableError):
-        provider.__antidote_provide__(Dependency('z'))
+    assert provider.provide(Dependency('z')) is None
 
 
 def test_namespace():
@@ -43,11 +42,10 @@ def test_namespace():
     provider.register(getter=lambda _: expected_1, namespace='g1')
     provider.register(getter=lambda _: expected_2, namespace='g2')
 
-    assert expected_1 == provider.__antidote_provide__(Dependency('g1:test')).item
-    assert expected_2 == provider.__antidote_provide__(Dependency('g2:test')).item
+    assert expected_1 == provider.provide(Dependency('g1:test')).item
+    assert expected_2 == provider.provide(Dependency('g2:test')).item
 
-    with pytest.raises(DependencyNotProvidableError):
-        provider.__antidote_provide__(Dependency('g3:test'))
+    assert provider.provide(Dependency('g3:test')) is None
 
 
 def test_omit_namespace():
@@ -64,13 +62,13 @@ def test_omit_namespace():
     provider.register(getter=getter, namespace='conf:', omit_namespace=True)
     provider.register(getter=raiser, namespace='test:', omit_namespace=True)
 
-    assert data['y'] == provider.__antidote_provide__(Dependency('conf:y')).item
-    assert data['x'] == provider.__antidote_provide__(Dependency('conf:x')).item
+    assert data['y'] == provider.provide(Dependency('conf:y')).item
+    assert data['x'] == provider.provide(Dependency('conf:x')).item
 
 
 def test_invalid_namespace():
     provider = GetterProvider()
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         provider.register(lambda _: None, namespace=object())
 
 
@@ -93,10 +91,10 @@ def test_singleton():
     provider = GetterProvider()
 
     provider.register(lambda _: object(), namespace='default')
-    assert True is provider.__antidote_provide__(Dependency('default')).singleton
+    assert True is provider.provide(Dependency('default')).singleton
 
     provider.register(lambda _: object(), namespace='singleton', singleton=True)
-    assert True is provider.__antidote_provide__(Dependency('singleton')).singleton
+    assert True is provider.provide(Dependency('singleton')).singleton
 
     provider.register(lambda _: object(), namespace='unique', singleton=False)
-    assert False is provider.__antidote_provide__(Dependency('unique')).singleton
+    assert False is provider.provide(Dependency('unique')).singleton

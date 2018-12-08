@@ -1,7 +1,7 @@
 import inspect
 from typing import (get_type_hints)
 
-from ..injection.base import inject
+from ..injection.inject import inject
 from ..injection.wiring import wire
 
 

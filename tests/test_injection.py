@@ -1,9 +1,9 @@
 import pytest
 
-from antidote import DependencyInstantiationError, DependencyNotProvidableError
+from antidote import (DependencyInstantiationError, DependencyNotProvidableError,
+                      Provider)
 from antidote.helpers import factory, getter, new_container, provider, register
 from antidote.injection import inject, wire
-from antidote.providers import Provider
 
 
 class Service:
@@ -118,7 +118,7 @@ class MyProvider(Provider, DummyMethodMixin):
         self.service = service
         self.another_service = another_service
 
-    def __antidote_provide__(self, dependency):
+    def provide(self, dependency):
         raise DependencyNotProvidableError(dependency)
 
 

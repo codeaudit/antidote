@@ -2,20 +2,16 @@ import contextlib
 import weakref
 from typing import Iterable, Mapping
 
-from .registration import provider
+from .._internal.container import get_global_container, set_global_container
 from ..container import DependencyContainer, ProxyContainer
-from ..providers import FactoryProvider, GetterProvider
-from ..providers.tags import TagProvider
-from .._internal.container import set_global_container, get_global_container
+from ..providers import FactoryProvider, GetterProvider, TagProvider
 
 
-def new_container(providers=(FactoryProvider, GetterProvider, TagProvider)
-                  ) -> DependencyContainer:
+def new_container() -> DependencyContainer:
     container = DependencyContainer()
-    container[DependencyContainer] = weakref.proxy(container)
-
-    for p in providers:
-        provider(p, container=container)
+    container.register_provider(FactoryProvider())
+    container.register_provider(GetterProvider())
+    container.register_provider(TagProvider(container))
 
     return container
 

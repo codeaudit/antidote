@@ -1,53 +1,17 @@
+# cython: language_level=3, boundscheck=False, wraparound=False
 import collections.abc as c_abc
-import inspect
 import typing
-from itertools import islice
-from typing import (Callable, Dict, Iterable, Mapping, Optional, Sequence,
-                    Tuple, Union)
+from typing import (Callable, Iterable, Mapping, Union)
 
-import wrapt
+# @formatter:off
+cimport cython
+from libcpp cimport bool as cbool
 
 from .._internal.argspec import get_arguments_specification
 from .._internal.container import get_global_container
-from .._internal.utils import SlotReprMixin
-from ..container import DependencyContainer
-from ..exceptions import DependencyNotFoundError, UndefinedContainerError
-
-
-class Injection(SlotReprMixin):
-    __slots__ = ('arg_name', 'required', 'dependency_id')
-
-    def __init__(self, arg_name: str, required: bool, dependency_id):
-        self.arg_name = arg_name
-        self.required = required
-        self.dependency_id = dependency_id
-
-
-class InjectionBlueprint(SlotReprMixin):
-    __slots__ = ('injections',)
-
-    def __init__(self, injections: Sequence[Optional[Injection]]):
-        self.injections = injections
-
-
-class Injector(SlotReprMixin):
-    __slots__ = ('container', 'blueprint')
-
-    def __init__(self, container, blueprint):
-        self.container = container
-        self.blueprint = blueprint
-
-    def __call__(self, wrapped, instance, args, kwargs):
-        args, kwargs = _generate_args_kwargs(
-            self.container,
-            self.blueprint,
-            args,
-            kwargs,
-            skip_first=instance is not None and not inspect.isclass(instance)
-        )
-
-        return wrapped(*args, **kwargs)
-
+# noinspection PyUnresolvedReferences
+from ..container cimport DependencyContainer, DependencyContainer, Instance
+# @formatter:on
 
 def inject(func: Callable = None,
            arg_map: Union[Mapping, Iterable] = None,
@@ -83,51 +47,91 @@ def inject(func: Callable = None,
     """
 
     def _inject(f):
-        return wrapt.FunctionWrapper(
-            wrapped=f,
-            wrapper=Injector(
-                container=container or get_global_container(),
-                blueprint=_generate_injection_blueprint(
-                    func=f,
-                    arg_map=arg_map,
-                    use_names=use_names,
-                    use_type_hints=use_type_hints
-                )
-            )
+        # _generate_injection_blueprint(
+        #         func=f,
+        #         arg_map=arg_map,
+        #         use_names=use_names,
+        #         use_type_hints=use_type_hints
+        #     )
+        # return f
+        return InjectedCallableWrapper(
+            container=container or get_global_container(),
+            blueprint=_generate_injection_blueprint(
+                func=f,
+                arg_map=arg_map,
+                use_names=use_names,
+                use_type_hints=use_type_hints
+            ),
+            wrapped=f
         )
 
     return func and _inject(func) or _inject
 
+cdef class InjectedCallableWrapper:
+    cdef:
+        object __wrapped__
+        DependencyContainer __container__
+        InjectionBlueprint __blueprint__
 
-def _generate_args_kwargs(container: Optional[DependencyContainer],
-                          bp: InjectionBlueprint,
-                          args: Sequence,
-                          kwargs: Dict,
-                          skip_first=False
-                          ) -> Tuple[Sequence, Dict]:
-    """
-    Generate the new arguments to be used by retrieving the missing
-    dependencies based on the injection blueprint.
+    def __init__(self,
+                 DependencyContainer container,
+                 InjectionBlueprint blueprint,
+                 object wrapped):
+        self.__container__ = container
+        self.__wrapped__ = wrapped
+        self.__blueprint__ = blueprint
 
-    If one argument has no default, is not set and is not mapped to a
-    known dependency, :py:exc:`~..exceptions.DependencyNotFoundError` is
-    raised.
-    """
-    if container is None:
-        raise UndefinedContainerError()
+    def __call__(self, *args, **kwargs):
+        kwargs = _inject_kwargs(self.__container__, self.__blueprint__, args, kwargs)
+        return self.__wrapped__(*args, **kwargs)
 
-    kwargs = kwargs.copy()
+    def __get__(self, instance, owner):
+        func = self.__wrapped__.__get__(instance, owner)
+        return InjectedBoundCallableWrapper(self.__container__, self.__blueprint__,
+                                            func)
 
-    for inj in islice(bp.injections, len(args) + (1 if skip_first else 0), None):
-        if inj is not None and inj.arg_name not in kwargs:
-            try:
-                kwargs[inj.arg_name] = container[inj.dependency_id]
-            except DependencyNotFoundError:
-                if inj.required:
-                    raise
+cdef class InjectedBoundCallableWrapper(InjectedCallableWrapper):
+    def __get__(self, instance, owner):
+        return self
 
-    return args, kwargs
+cdef class InjectionBlueprint:
+    cdef:
+        tuple injections
 
+    def __init__(self, tuple injections):
+        self.injections = injections
+
+@cython.freelist(5)
+cdef class Injection:
+    cdef:
+        str arg_name
+        cbool required
+        object dependency_id
+
+    def __init__(self, str arg_name, cbool required, object dependency_id):
+        self.arg_name = arg_name
+        self.required = required
+        self.dependency_id = dependency_id
+
+cdef dict _inject_kwargs(DependencyContainer container,
+                         InjectionBlueprint blueprint,
+                         tuple args,
+                         dict kwargs):
+    cdef:
+        Injection injection
+        object instance
+        cbool dirty_kwargs = False
+
+    for injection in blueprint.injections[len(args):]:
+        if injection.dependency_id is not None and injection.arg_name not in kwargs:
+            instance = container.provide(injection.dependency_id)
+            if instance is not None:
+                if not dirty_kwargs:
+                    kwargs = kwargs.copy()
+                    dirty_kwargs = True
+                kwargs[injection.arg_name] = instance
+
+    return kwargs
 
 def _generate_injection_blueprint(func: Callable,
                                   arg_map: Union[Mapping, Iterable] = None,
@@ -196,9 +200,10 @@ def _generate_injection_blueprint(func: Callable,
     ]
 
     return InjectionBlueprint(tuple([
-        Injection(arg_name=arg.name, required=not arg.has_default,
-                  dependency_id=dependency_id)
-        if dependency_id is not None else
+        # Injection(arg_name=arg.name,
+        #           required=not arg.has_default,
+        #           dependency_id=dependency_id)
+        # if dependency_id is not None else
         None
         for arg, dependency_id in zip(arg_spec.arguments, dependencies)
     ]))

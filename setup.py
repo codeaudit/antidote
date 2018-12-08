@@ -3,7 +3,8 @@ import pathlib
 import shutil
 import sys
 
-from setuptools import setup, find_packages
+from Cython.Build import cythonize
+from setuptools import Extension, find_packages, setup
 
 here = pathlib.Path(os.path.dirname(os.path.abspath(__file__)))
 
@@ -25,6 +26,21 @@ if sys.argv[-1] == 'publish':
 with open(str(here / 'README.rst'), 'r') as f:
     readme = f.read()
 
+
+def generate_extensions():
+    extensions = []
+    for root, _, filenames in os.walk('src'):
+        for filename in filenames:
+            if filename.endswith('.pyx'):
+                path = os.path.join(root, filename)
+                module = path[4:].replace('/', '.').rsplit('.', 1)[0]
+                extensions.append(Extension(module,
+                                            [path],
+                                            include_dirs=['src/'],
+                                            language='c++'))
+    return extensions
+
+
 setup(
     name='antidote',
     use_scm_version=True,
@@ -35,7 +51,10 @@ setup(
     url='https://github.com/Finistere/antidote',
     packages=find_packages('src'),
     package_dir={'': 'src'},
+    include_dirs=["src"],
     install_requires=["wrapt"],
+    ext_modules=cythonize(generate_extensions(),
+                          language='c++', gdb_debug=True),
     extras_require={
         ":python_version<'3.5'": ["typing"],
         "docs": [

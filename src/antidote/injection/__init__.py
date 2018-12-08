@@ -1,2 +1,2 @@
-from .base import inject
+from .inject import inject
 from .wiring import wire

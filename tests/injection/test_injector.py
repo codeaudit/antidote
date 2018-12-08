@@ -37,7 +37,7 @@ from antidote.exceptions import UndefinedContainerError
 
 
 def test_undefined_container():
-    @inject
+    @inject(container=DependencyContainer())
     def f(x):
         return x
 

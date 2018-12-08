@@ -1,18 +1,21 @@
+# cython: language_level=3, boundscheck=False, wraparound=False
 from typing import Any, Callable, Dict, Tuple
+from libcpp cimport bool as cbool
 
-from .base import Provider
-from .._internal.utils import SlotReprMixin
-from ..container import Dependency, Instance
-from ..exceptions import DependencyNotProvidableError, DuplicateDependencyError
+# @formatter:off
+# noinspection PyUnresolvedReferences
+from ..container cimport Dependency, Instance, Provider
+from ..exceptions import DuplicateDependencyError
+# @formatter:on
 
 
-class FactoryProvider(Provider):
+cdef class FactoryProvider(Provider):
     """
     Provider managing factories. When a dependency is requested, it tries
     to find a matching factory and builds it. Subclasses may also be built.
     """
 
-    def __init__(self) -> None:
+    def __init__(self):
         self._factories = dict()  # type: Dict[Any, DependencyFactory]
 
     def __repr__(self):
@@ -23,7 +26,7 @@ class FactoryProvider(Provider):
             tuple(self._factories.keys()),
         )
 
-    def __antidote_provide__(self, dependency: Dependency) -> Instance:
+    cpdef Instance provide(self, dependency: Dependency):
         """
         Builds the dependency if a factory associated with the dependency_id
         can be found.
@@ -35,10 +38,15 @@ class FactoryProvider(Provider):
             A :py:class:`~.container.Instance` wrapping the built instance for
             the dependency.
         """
+        cdef:
+            DependencyFactory factory
+            tuple args
+            dict kwargs
+
         try:
             factory = self._factories[dependency.id]
         except KeyError:
-            raise DependencyNotProvidableError(dependency)
+            return
 
         if isinstance(dependency, Build):
             args = dependency.args
@@ -85,20 +93,18 @@ class FactoryProvider(Provider):
 
         self._factories[dependency_id] = dependency_factory
 
-
-class DependencyFactory(SlotReprMixin):
+cdef class DependencyFactory:
     """
     Only used by the FactoryProvider, not part of the public API.
 
     Simple container to store information on how the factory has to be used.
     """
-    __slots__ = ('factory', 'singleton', 'takes_dependency_id')
+    cdef:
+        object factory
+        cbool singleton
+        cbool takes_dependency_id
 
-    def __init__(self,
-                 factory: Callable,
-                 singleton: bool,
-                 takes_dependency_id: bool
-                 ) -> None:
+    def __init__(self, factory: Callable, singleton: bool, takes_dependency_id: bool):
         self.factory = factory
         self.singleton = singleton
         self.takes_dependency_id = takes_dependency_id
@@ -106,10 +112,7 @@ class DependencyFactory(SlotReprMixin):
     def __call__(self, *args, **kwargs):
         return self.factory(*args, **kwargs)
 
-classmethod
-class Build(Dependency):
-    __slots__ = ('id', 'args', 'kwargs')
-
+cdef class Build(Dependency):
     def __init__(self, *args, **kwargs):
         super().__init__(args[0])
         self.args = args[1:]  # type: Tuple
@@ -129,7 +132,7 @@ class Build(Dependency):
     def __eq__(self, other):
         return ((not self.kwargs and not self.args
                  and (self.id is other or self.id == other))
-                or (isinstance(other, Dependency)
+                or (isinstance(other, Build)
                     and (self.id is other.id or self.id == other.id)
                     and self.args == other.args
                     and self.kwargs == other.kwargs))

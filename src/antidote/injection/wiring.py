@@ -1,7 +1,7 @@
 import inspect
 from typing import (Callable, Iterable, Mapping, Sequence, Union)
 
-from .base import inject
+from .inject import inject
 from ..container import DependencyContainer
 
 

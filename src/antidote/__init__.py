@@ -2,14 +2,14 @@ import typing as _t
 
 import pkg_resources as _pkg_resources
 
-from .container import Dependency, DependencyContainer, Instance
-from .exceptions import (AntidoteError, DependencyCycleError, DuplicateDependencyError,
+from .container import Dependency, DependencyContainer, Instance, Provider
+from .exceptions import (AntidoteError, DependencyCycleError,
                          DependencyInstantiationError, DependencyNotFoundError,
-                         DependencyNotProvidableError)
-from .helpers import attrib, factory, getter, provider, register, context
+                         DependencyNotProvidableError, DuplicateDependencyError)
+from .helpers import attrib, context, factory, getter, provider, register, new_container
 from .injection import inject
-from .providers import FactoryProvider, GetterProvider, Provider, TagProvider
-from .providers.factories import Build
+from .providers import FactoryProvider, GetterProvider, TagProvider
+from .providers.factory import Build
 from .providers.tags import Tag, Tagged, TaggedDependencies
 
 try:

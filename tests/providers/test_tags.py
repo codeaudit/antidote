@@ -45,12 +45,12 @@ def test_provide_tags():
     provider.register('test', ['tag1', Tag('tag2', error=True)])
     provider.register('test2', ['tag2'])
 
-    result = provider.__antidote_provide__(Tagged('xxxxx'))
+    result = provider.provide(Tagged('xxxxx'))
     assert isinstance(result, Instance)
     assert result.singleton is False
     assert 0 == len(result.item)
 
-    result = provider.__antidote_provide__(Tagged('tag1'))
+    result = provider.provide(Tagged('tag1'))
     assert isinstance(result, Instance)
     assert result.singleton is False
     assert 1 == len(result.item)
@@ -58,7 +58,7 @@ def test_provide_tags():
     result = dict(result.item.items())
     assert 'tag1' == result[container['test']].name
 
-    result = provider.__antidote_provide__(Tagged('tag2'))
+    result = provider.provide(Tagged('tag2'))
     assert isinstance(result, Instance)
     assert result.singleton is False
     assert 2 == len(result.item)
@@ -68,8 +68,8 @@ def test_provide_tags():
     assert 'tag2' == result[container['test']].name
     assert result[container['test']].error
 
-    result = provider.__antidote_provide__(Tagged('tag2',
-                                                  filter=lambda t: t.error is not True))
+    result = provider.provide(Tagged('tag2',
+                                     filter=lambda t: t.error is not True))
     assert isinstance(result, Instance)
     assert result.singleton is False
     assert 1 == len(result.item)

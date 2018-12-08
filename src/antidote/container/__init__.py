@@ -1,2 +1,2 @@
-from .base import Dependency, DependencyContainer, Instance
+from .container import Dependency, DependencyContainer, Instance, Provider
 from .proxy import ProxyContainer

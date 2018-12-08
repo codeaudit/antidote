@@ -1,24 +1,26 @@
+# cython: language_level=3, boundscheck=False, wraparound=False
 from typing import Any, Callable, List
 
-from antidote._internal.utils import SlotReprMixin
+# @formatter:off
+from libcpp cimport bool as cbool
 
-from .base import Provider
-from ..container import Dependency, Instance
-from ..exceptions import DependencyNotProvidableError, GetterNamespaceConflict
+# noinspection PyUnresolvedReferences
+from ..container cimport Dependency, Instance, Provider
+from ..exceptions import GetterNamespaceConflict
+# @formatter:on
 
 
-class GetterProvider(Provider):
+cdef class GetterProvider(Provider):
     """
     Provider managing constant parameters like configuration.
     """
-
     def __init__(self):
         self._dependency_getters = []  # type: List[DependencyGetter]
 
     def __repr__(self):
         return "{}(getters={!r})".format(type(self).__name__, self._dependency_getters)
 
-    def __antidote_provide__(self, dependency: Dependency) -> Instance:
+    cpdef Instance provide(self, Dependency dependency):
         """
         Provide the parameter associated with the dependency_id.
 
@@ -29,16 +31,19 @@ class GetterProvider(Provider):
             A :py:class:`~.container.Instance` wrapping the built instance for
             the dependency.
         """
+        cdef:
+            DependencyGetter getter
+            object instance
+
         if isinstance(dependency.id, str):
             for getter in self._dependency_getters:
-                if dependency.id.startswith(getter.namespace):
+                if dependency.id.startswith(getter.namespace_):
                     try:
-                        return Instance(getter(dependency.id),
-                                        singleton=getter.singleton)
+                        instance = getter.get(dependency.id)
                     except LookupError:
                         break
-
-        raise DependencyNotProvidableError(dependency)
+                    else:
+                        return Instance(instance, singleton=getter.singleton)
 
     def register(self,
                  getter: Callable[[str], Any],
@@ -62,29 +67,32 @@ class GetterProvider(Provider):
             raise ValueError("prefix must be a string")
 
         for g in self._dependency_getters:
-            if g.namespace.startswith(namespace) or namespace.startswith(g.namespace):
-                raise GetterNamespaceConflict(g.namespace, namespace)
+            if g.namespace_.startswith(namespace) or namespace.startswith(g.namespace_):
+                raise GetterNamespaceConflict(g.namespace_, namespace)
 
-        self._dependency_getters.append(DependencyGetter(func=getter,
+        self._dependency_getters.append(DependencyGetter(getter=getter,
                                                          namespace=namespace,
                                                          omit_namespace=omit_namespace,
                                                          singleton=singleton))
 
-
-class DependencyGetter(SlotReprMixin):
-    __slots__ = ('namespace', 'func', 'omit_namespace', 'singleton')
+cdef class DependencyGetter:
+    cdef:
+        public str namespace_
+        public object singleton
+        object _getter
+        cbool _omit_namespace
 
     def __init__(self,
-                 func: Callable[[str], Any],
+                 getter: Callable[[str], Any],
                  namespace: str,
                  omit_namespace: bool,
                  singleton: bool):
-        self.func = func
-        self.namespace = namespace
-        self.omit_namespace = omit_namespace
+        self._getter = getter
+        self._omit_namespace = omit_namespace
+        self.namespace_ = namespace
         self.singleton = singleton
 
-    def __call__(self, name):
-        if self.omit_namespace:
-            name = name[len(self.namespace):]
-        return self.func(name)
+    cdef object get(self, str name):
+        if self._omit_namespace:
+            name = name[len(self.namespace_):]
+        return self._getter(name)
