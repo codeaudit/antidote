@@ -100,9 +100,17 @@ cdef class DependencyFactory:
     Simple container to store information on how the factory has to be used.
     """
     cdef:
-        object factory
-        cbool singleton
-        cbool takes_dependency_id
+        readonly object factory
+        readonly cbool singleton
+        readonly cbool takes_dependency_id
+
+    def __repr__(self):
+        return "{}(factory={!r}, singleton={!r}, takes_dependency_id={!r})".format(
+            type(self).__name__,
+            self.factory,
+            self.singleton,
+            self.takes_dependency_id
+        )
 
     def __init__(self, factory: Callable, singleton: bool, takes_dependency_id: bool):
         self.factory = factory
@@ -117,6 +125,14 @@ cdef class Build(Dependency):
         super().__init__(args[0])
         self.args = args[1:]  # type: Tuple
         self.kwargs = kwargs  # type: Dict
+
+    def __repr__(self):
+        return "{}(id={!r}, args={!r}, kwargs={!r})".format(
+            type(self).__name__,
+            self.id,
+            self.args,
+            self.kwargs
+        )
 
     def __hash__(self):
         if self.args or self.kwargs:

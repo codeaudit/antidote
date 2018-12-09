@@ -36,13 +36,13 @@ from antidote.exceptions import UndefinedContainerError
 #     assert 1 == a and 2 == b
 
 
-def test_undefined_container():
-    @inject(container=DependencyContainer())
-    def f(x):
-        return x
-
-    with pytest.raises(UndefinedContainerError):
-        f()
+# def test_undefined_container():
+#     @inject(container=DependencyContainer())
+#     def f(x):
+#         return x
+#
+#     with pytest.raises(UndefinedContainerError):
+#         f()
 
 
 def test_arg_map():
@@ -103,7 +103,6 @@ def test_use_names():
         return test
 
     # test is inject by name
-    f = inject_(func=f, use_names=True)
     assert container['test'] == inject_(f, use_names=True)()
 
     container['yes'] = 'yes'

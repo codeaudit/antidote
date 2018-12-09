@@ -10,7 +10,7 @@ from antidote.helpers import getter
 @pytest.fixture()
 def container():
     c = DependencyContainer()
-    c.providers[GetterProvider] = GetterProvider()
+    c.register_provider(GetterProvider())
 
     return c
 

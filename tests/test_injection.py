@@ -149,7 +149,7 @@ wire_.__name__ = 'wire'
 
 
 def getter_(func=None, **kwargs):
-    return getter(func=func, namespace='my_service', **kwargs)
+    return getter(func=func, namespace='my_service:', **kwargs)
 
 
 getter_.__name__ = 'getter'
@@ -245,7 +245,7 @@ def parametrize_injection(tests, lazy=False, return_wrapped=False,
                 elif 'factory' in name:
                     return container[MyService]
                 elif 'getter' in name:
-                    return container['my_service']
+                    return container['my_service:*']
                 elif 'provider' in name:
                     return container.providers[wrapped_]
                 elif 'inject' in name or 'wire' in name:

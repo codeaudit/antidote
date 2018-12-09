@@ -71,11 +71,7 @@ cdef class DependencyContainer:
             self._singletons.update(*args, **kwargs)
 
     def __getitem__(self, dependency):
-        instance = self.provide(dependency)
-        if instance is None:
-            raise DependencyNotFoundError(dependency)
-
-        return instance
+        return self.provide(dependency)
 
     cpdef object provide(self, object dependency):
         """
@@ -120,11 +116,16 @@ cdef class DependencyContainer:
         except Exception as e:
             raise DependencyInstantiationError(dependency) from e
 
+        raise DependencyNotFoundError(dependency)
+
 cdef class Dependency:
     def __init__(self, id):
         assert id is not None
         assert not isinstance(id, Dependency)
         self.id = id
+
+    def __repr__(self):
+        return "{}(id={!r})".format(type(self).__name__, self.id)
 
     def __hash__(self):
         return hash(self.id)
@@ -144,6 +145,10 @@ cdef class Instance:
     def __init__(self, item, singleton: bool = False):
         self.item = item
         self.singleton = singleton
+
+    def __repr__(self):
+        return "{}(item={!r}, singleton={!r})".format(type(self).__name__, self.item,
+                                                      self.singleton)
 
 cdef class Provider:
     cpdef Instance provide(self, Dependency dependency):

@@ -3,7 +3,7 @@ from typing import Any, Callable, Iterable, Mapping, Sequence, Union, cast
 
 from .._internal.container import get_global_container
 from .._internal.helpers import prepare_callable, prepare_class
-from ..container import DependencyContainer
+from ..container import DependencyContainer, Provider
 from ..providers import FactoryProvider, GetterProvider, Tag, TagProvider
 
 
@@ -232,6 +232,9 @@ def provider(class_: type = None,
     container = container or get_global_container()
 
     def register_provider(cls):
+        if not issubclass(cls, Provider):
+            raise ValueError("A provider must be subclass of Provider.")
+
         cls = prepare_class(cls,
                             auto_wire=auto_wire,
                             arg_map=arg_map,

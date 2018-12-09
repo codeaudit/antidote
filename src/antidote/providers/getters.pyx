@@ -79,8 +79,18 @@ cdef class DependencyGetter:
     cdef:
         public str namespace_
         public object singleton
-        object _getter
-        cbool _omit_namespace
+        readonly object _getter
+        readonly cbool _omit_namespace
+
+    def __repr__(self):
+        return "{}(getter={!r}, namespace={!r}, omit_namespace={!r}, " \
+               "singleton={!r})".format(
+            type(self).__name__,
+            self._getter,
+            self.namespace_,
+            self._omit_namespace,
+            self.singleton
+        )
 
     def __init__(self,
                  getter: Callable[[str], Any],

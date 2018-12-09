@@ -1,44 +1,64 @@
+import threading
+from collections import deque
 # cython: language_level=3, boundscheck=False, wraparound=False
-from typing import (Any, Callable, Dict, Iterable, TypeVar, Union)
+from typing import Any, Callable, Dict, Generic, Iterable, Iterator, List, Tuple, \
+    TypeVar, Union
 
-from .tagged_dependencies import TaggedDependencies
-# @formatter:off
+from .dependency import Tag, Tagged
 # noinspection PyUnresolvedReferences
-from ..container cimport Dependency, DependencyContainer, Instance, Provider
-# @formatter:on
-from ..exceptions import DuplicateTagError
+from ...container import Dependency, DependencyContainer, Instance, Provider
+from ...exceptions import DuplicateTagError
 
 T = TypeVar('T')
 
-cdef class Tag:
-    def __init__(self, name: str, **attrs):
-        self.name = name
-        self._attrs = attrs
 
-    def __getattr__(self, item):
-        return self._attrs.get(item)
+class TaggedDependencies(Generic[T]):
+    def __init__(self, dependencies: Iterable[Tuple[Callable[..., T], Tag]]):
+        self._instances = []  # type: List[T]
+        self._tags = []  # type: List[Tag]
+        self._dependencies = deque()
 
-cdef class Tagged(Dependency):
-    def __init__(self, name: str, filter: Union[Callable[[Tag], bool]] = None):
-        # If filter is None -> caching works.
-        # If not, dependencies are still cached if necessary.
-        super().__init__(name)
-        if filter is not None and not callable(filter):
-            raise ValueError("filter must be either a function or None")
+        for dependency, tag in dependencies:
+            self._dependencies.append(dependency)
+            self._tags.append(tag)
 
-        self.filter = filter or (lambda _: True)  # type: Callable[[Tag], bool]
+        self._lock = threading.Lock()
 
-    @property
-    def name(self) -> str:
-        return self.id
+    def __iter__(self) -> Iterable[T]:
+        return iter(self.dependencies())
 
-    def __hash__(self):
-        return object.__hash__(self)
+    def __len__(self):
+        return len(self._tags)
 
-    def __eq__(self, other):
-        return object.__eq__(self, other)
+    def items(self) -> Iterable[Tuple[T, Tag]]:
+        return zip(self.dependencies(), self.tags())
 
-cdef class TagProvider(Provider):
+    def tags(self) -> Iterable[Tag]:
+        return iter(self._tags)
+
+    def dependencies(self) -> Iterator[T]:
+        i = -1
+        for i, dependency in enumerate(self._instances):
+            yield dependency
+
+        i += 1
+
+        while i < len(self):
+            try:
+                yield self._instances[i]
+            except IndexError:
+                with self._lock:
+                    try:
+                        getter = self._dependencies.popleft()
+                    except IndexError:
+                        pass
+                    else:
+                        self._instances.append(getter())
+                yield self._instances[i]
+            i += 1
+
+
+class TagProvider(Provider):
     def __init__(self, container: DependencyContainer):
         self._tagged_dependencies = {}  # type: Dict[str, Dict[Any, Tag]]
         self._container = container
@@ -50,10 +70,6 @@ cdef class TagProvider(Provider):
         )
 
     def provide(self, dependency: Dependency) -> Instance:
-        cdef:
-            Tag tag
-            object tagged_dependency
-
         if isinstance(dependency, Tagged):
             return Instance(
                 TaggedDependencies(

@@ -11,6 +11,7 @@ from .._internal.argspec import get_arguments_specification
 from .._internal.container import get_global_container
 # noinspection PyUnresolvedReferences
 from ..container cimport DependencyContainer, DependencyContainer, Instance
+from ..exceptions import DependencyNotFoundError
 # @formatter:on
 
 def inject(func: Callable = None,
@@ -47,13 +48,8 @@ def inject(func: Callable = None,
     """
 
     def _inject(f):
-        # _generate_injection_blueprint(
-        #         func=f,
-        #         arg_map=arg_map,
-        #         use_names=use_names,
-        #         use_type_hints=use_type_hints
-        #     )
-        # return f
+        if isinstance(f, InjectedCallableWrapper):
+            return f
         return InjectedCallableWrapper(
             container=container or get_global_container(),
             blueprint=_generate_injection_blueprint(
@@ -72,23 +68,36 @@ cdef class InjectedCallableWrapper:
         object __wrapped__
         DependencyContainer __container__
         InjectionBlueprint __blueprint__
+        int __injection_offset
 
     def __init__(self,
                  DependencyContainer container,
                  InjectionBlueprint blueprint,
-                 object wrapped):
+                 object wrapped,
+                 cbool skip_self = False):
         self.__container__ = container
         self.__wrapped__ = wrapped
         self.__blueprint__ = blueprint
+        self.__injection_offset = 1 if skip_self else 0
 
     def __call__(self, *args, **kwargs):
-        kwargs = _inject_kwargs(self.__container__, self.__blueprint__, args, kwargs)
+        kwargs = _inject_kwargs(
+            self.__container__,
+            self.__blueprint__,
+            self.__injection_offset + len(args),
+            kwargs
+        )
+        # for injection in self.__blueprint__.injections:
+        #     print(repr(injection))
+        # print(args)
+        # print(kwargs)
         return self.__wrapped__(*args, **kwargs)
 
     def __get__(self, instance, owner):
+        skip_self = instance is not None
         func = self.__wrapped__.__get__(instance, owner)
         return InjectedBoundCallableWrapper(self.__container__, self.__blueprint__,
-                                            func)
+                                            func, skip_self=skip_self)
 
 cdef class InjectedBoundCallableWrapper(InjectedCallableWrapper):
     def __get__(self, instance, owner):
@@ -104,9 +113,17 @@ cdef class InjectionBlueprint:
 @cython.freelist(5)
 cdef class Injection:
     cdef:
-        str arg_name
-        cbool required
-        object dependency_id
+        readonly str arg_name
+        readonly cbool required
+        readonly object dependency_id
+
+    def __repr__(self):
+        return "{}(arg_name={!r}, required={!r}, dependency_id={!r})".format(
+            type(self).__name__,
+            self.arg_name,
+            self.required,
+            self.dependency_id
+        )
 
     def __init__(self, str arg_name, cbool required, object dependency_id):
         self.arg_name = arg_name
@@ -115,17 +132,21 @@ cdef class Injection:
 
 cdef dict _inject_kwargs(DependencyContainer container,
                          InjectionBlueprint blueprint,
-                         tuple args,
+                         int offset,
                          dict kwargs):
     cdef:
         Injection injection
         object instance
         cbool dirty_kwargs = False
 
-    for injection in blueprint.injections[len(args):]:
+    for injection in blueprint.injections[offset:]:
         if injection.dependency_id is not None and injection.arg_name not in kwargs:
-            instance = container.provide(injection.dependency_id)
-            if instance is not None:
+            try:
+                instance = container.provide(injection.dependency_id)
+            except DependencyNotFoundError:
+                if injection.required:
+                    raise
+            else:
                 if not dirty_kwargs:
                     kwargs = kwargs.copy()
                     dirty_kwargs = True
@@ -200,10 +221,8 @@ def _generate_injection_blueprint(func: Callable,
     ]
 
     return InjectionBlueprint(tuple([
-        # Injection(arg_name=arg.name,
-        #           required=not arg.has_default,
-        #           dependency_id=dependency_id)
-        # if dependency_id is not None else
-        None
+        Injection(arg_name=arg.name,
+                  required=not arg.has_default,
+                  dependency_id=dependency_id)
         for arg, dependency_id in zip(arg_spec.arguments, dependencies)
     ]))

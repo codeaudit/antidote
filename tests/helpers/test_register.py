@@ -7,8 +7,8 @@ from antidote.helpers import register
 @pytest.fixture()
 def container():
     c = DependencyContainer()
-    c.providers[FactoryProvider] = FactoryProvider()
-    c.providers[TagProvider] = TagProvider(container=c)
+    c.register_provider(FactoryProvider())
+    c.register_provider(TagProvider(container=c))
 
     return c
 

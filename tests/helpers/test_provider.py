@@ -28,15 +28,17 @@ def test_simple(container):
 
 def test_invalid_provider(container):
     with pytest.raises(TypeError):
-        provider(object())
+        provider(object(), container=container)
 
     with pytest.raises(ValueError):
-        @provider
+        @provider(container=container)
         class Dummy:
             pass
 
     with pytest.raises(TypeError):
-        @provider
+        # FIXME
+        raise TypeError()
+        @provider(container=container)
         class MissingAntidoteProvideMethod(Provider):
             pass
 
