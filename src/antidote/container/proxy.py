@@ -23,11 +23,12 @@ class ProxyContainer(DependencyContainer):
         else:
             raise ValueError("missing must be either an iterable or None")
 
+        existing_singletons = container.singletons
         if include is None:
-            self.update(container.singletons)
+            self.update(existing_singletons)
         elif isinstance(include, c_abc.Iterable):
             for dependency in include:
-                self[dependency] = container.singletons[dependency]
+                self[dependency] = existing_singletons[dependency]
         else:
             raise ValueError("include must be either an iterable or None")
 

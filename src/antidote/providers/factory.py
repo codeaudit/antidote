@@ -1,18 +1,16 @@
-# cython: language_level=3, language=c++
-# cython: boundscheck=False, wraparound=False
-# cython: linetrace=True
-from typing import Any, Callable, Dict, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
-# @formatter:off
-from libcpp cimport bool as cbool
-
-# noinspection PyUnresolvedReferences
-from ..container cimport Dependency, Instance, Provider
+from .._internal.utils import SlotReprMixin
+from ..container import Dependency, Instance, Provider
 from ..exceptions import DuplicateDependencyError
-# @formatter:on
 
 
-cdef class FactoryProvider(Provider):
+class FactoryProvider(Provider):
+    """
+    Provider managing factories. When a dependency is requested, it tries
+    to find a matching factory and builds it. Subclasses may also be built.
+    """
+
     def __init__(self):
         self._factories = dict()  # type: Dict[Any, DependencyFactory]
 
@@ -24,14 +22,21 @@ cdef class FactoryProvider(Provider):
             tuple(self._factories.keys()),
         )
 
-    cpdef Instance provide(self, dependency: Dependency):
-        cdef:
-            DependencyFactory factory
-            tuple args
-            dict kwargs
+    def provide(self, dependency: Dependency) -> Optional[Instance]:
+        """
+        Builds the dependency if a factory associated with the dependency_id
+        can be found.
+
+        Args:
+            dependency: dependency to provide.
+
+        Returns:
+            A :py:class:`~.container.Instance` wrapping the built instance for
+            the dependency.
+        """
 
         try:
-            factory = self._factories[dependency.id]
+            factory = self._factories[dependency.id]  # type: DependencyFactory
         except KeyError:
             return
 
@@ -53,6 +58,18 @@ cdef class FactoryProvider(Provider):
                  factory: Callable,
                  singleton: bool = True,
                  takes_dependency_id: bool = False):
+        """
+        Register a factory for a dependency.
+
+        Args:
+            dependency_id: ID of the dependency.
+            factory: Callable used to instantiate the dependency.
+            singleton: Whether the dependency should be mark as singleton or
+                not for the :py:class:`~..container.DependencyContainer`.
+            takes_dependency_id: If True, subclasses will also be build with this
+                factory. If multiple factories are defined, the first in the
+                MRO is used.
+        """
         if not callable(factory):
             raise ValueError("The `factory` must be callable.")
 
@@ -68,41 +85,31 @@ cdef class FactoryProvider(Provider):
 
         self._factories[dependency_id] = dependency_factory
 
-cdef class DependencyFactory:
-    cdef:
-        readonly object factory
-        readonly cbool singleton
-        readonly cbool takes_dependency_id
+
+class DependencyFactory(SlotReprMixin):
+    """
+    Only used by the FactoryProvider, not part of the public API.
+
+    Simple container to store information on how the factory has to be used.
+    """
+    __slots__ = ('factory', 'singleton', 'takes_dependency_id')
 
     def __init__(self, factory: Callable, singleton: bool, takes_dependency_id: bool):
         self.factory = factory
         self.singleton = singleton
         self.takes_dependency_id = takes_dependency_id
 
-    def __repr__(self):
-        return "{}(factory={!r}, singleton={!r}, takes_dependency_id={!r})".format(
-            type(self).__name__,
-            self.factory,
-            self.singleton,
-            self.takes_dependency_id
-        )
-
     def __call__(self, *args, **kwargs):
         return self.factory(*args, **kwargs)
 
-cdef class Build(Dependency):
+
+class Build(Dependency):
+    __slots__ = ('args', 'kwargs')
+
     def __init__(self, *args, **kwargs):
         super().__init__(args[0])
         self.args = args[1:]  # type: Tuple
         self.kwargs = kwargs  # type: Dict
-
-    def __repr__(self):
-        return "{}(id={!r}, args={!r}, kwargs={!r})".format(
-            type(self).__name__,
-            self.id,
-            self.args,
-            self.kwargs
-        )
 
     def __hash__(self):
         if self.args or self.kwargs:

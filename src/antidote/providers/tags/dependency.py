@@ -1,29 +1,25 @@
-# cython: language_level=3, language=c++
-# cython: boundscheck=False, wraparound=False
-# cython: linetrace=True
 from typing import (Callable, TypeVar, Union)
 
-# @formatter:off
-# noinspection PyUnresolvedReferences
-from ...container cimport Dependency, DependencyContainer, Instance, Provider
-# @formatter:on
+from ..._internal.utils import SlotReprMixin
+from ...container import Dependency
 
 T = TypeVar('T')
 
-cdef class Tag:
+
+class Tag(SlotReprMixin):
+    __slots__ = ('name', '_attrs')
+
     def __init__(self, name: str, **attrs):
         self.name = name
         self._attrs = attrs
 
-    def __repr__(self):
-        return "{}(name={!r}, **attrs={!r})".format(type(self).__name__,
-                                                    self.id,
-                                                    self._attrs)
-
     def __getattr__(self, item):
         return self._attrs.get(item)
 
-cdef class Tagged(Dependency):
+
+class Tagged(Dependency):
+    __slots__ = ('filter',)
+
     def __init__(self, name: str, filter: Union[Callable[[Tag], bool]] = None):
         # If filter is None -> caching works.
         # If not, dependencies are still cached if necessary.
@@ -32,11 +28,6 @@ cdef class Tagged(Dependency):
             raise ValueError("filter must be either a function or None")
 
         self.filter = filter or (lambda _: True)  # type: Callable[[Tag], bool]
-
-    def __repr__(self):
-        return "{}(name={!r}, filter={!r})".format(type(self).__name__,
-                                                   self.id,
-                                                   self.filter)
 
     @property
     def name(self) -> str:

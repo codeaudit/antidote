@@ -1,29 +1,32 @@
-# cython: language_level=3, language=c++
-# cython: boundscheck=False, wraparound=False
-# cython: linetrace=True
-from typing import Any, Callable, List
+from typing import Any, Callable, List, Optional
 
-# @formatter:off
-from libcpp cimport bool as cbool
-
-# noinspection PyUnresolvedReferences
-from ..container cimport Dependency, Instance, Provider
+from .._internal.utils import SlotReprMixin
+from ..container import Dependency, Instance, Provider
 from ..exceptions import GetterNamespaceConflict
-# @formatter:on
 
 
-cdef class GetterProvider(Provider):
+class GetterProvider(Provider):
+    """
+    Provider managing constant parameters like configuration.
+    """
+
     def __init__(self):
         self._dependency_getters = []  # type: List[DependencyGetter]
 
     def __repr__(self):
         return "{}(getters={!r})".format(type(self).__name__, self._dependency_getters)
 
-    cpdef Instance provide(self, Dependency dependency):
-        cdef:
-            DependencyGetter getter
-            object instance
+    def provide(self, dependency: Dependency) -> Optional[Instance]:
+        """
+        Provide the parameter associated with the dependency_id.
 
+        Args:
+            dependency: dependency to provide.
+
+        Returns:
+            A :py:class:`~.container.Instance` wrapping the built instance for
+            the dependency.
+        """
         if isinstance(dependency.id, str):
             for getter in self._dependency_getters:
                 if dependency.id.startswith(getter.namespace_):
@@ -39,6 +42,19 @@ cdef class GetterProvider(Provider):
                  namespace: str,
                  omit_namespace: bool = False,
                  singleton: bool = True):
+        """
+        Register parameters with its getter.
+
+        Args:
+            getter: Function used to retrieve a requested dependency which will
+                be given as an argument. If the dependency cannot be provided,
+                it should raise a :py:exc:`LookupError`.
+            namespace: Used to identity which getter should be used with a
+                dependency, as such they have to be mutually exclusive.
+            omit_namespace: Whether or the namespace should be removed from the
+                dependency name which is given to the getter. Defaults to False.
+
+        """
         if not isinstance(namespace, str):
             raise ValueError("prefix must be a string")
 
@@ -51,22 +67,9 @@ cdef class GetterProvider(Provider):
                                                          omit_namespace=omit_namespace,
                                                          singleton=singleton))
 
-cdef class DependencyGetter:
-    cdef:
-        public str namespace_
-        public object singleton
-        readonly object _getter
-        readonly cbool _omit_namespace
 
-    def __repr__(self):
-        return "{}(getter={!r}, namespace={!r}, omit_namespace={!r}, " \
-               "singleton={!r})".format(
-            type(self).__name__,
-            self._getter,
-            self.namespace_,
-            self._omit_namespace,
-            self.singleton
-        )
+class DependencyGetter(SlotReprMixin):
+    __slots__ = ('_getter', '_omit_namespace', 'namespace_', 'singleton')
 
     def __init__(self,
                  getter: Callable[[str], Any],
@@ -78,7 +81,7 @@ cdef class DependencyGetter:
         self.namespace_ = namespace
         self.singleton = singleton
 
-    cdef object get(self, str name):
+    def get(self, name):
         if self._omit_namespace:
             name = name[len(self.namespace_):]
         return self._getter(name)

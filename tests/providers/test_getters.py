@@ -68,7 +68,8 @@ def test_omit_namespace():
 
 def test_invalid_namespace():
     provider = GetterProvider()
-    with pytest.raises(TypeError):
+    with pytest.raises((TypeError,   # TypeError for Cython
+                        ValueError)):  # TypeError for pure Python
         provider.register(lambda _: None, namespace=object())
 
 

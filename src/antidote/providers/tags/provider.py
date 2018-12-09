@@ -1,6 +1,5 @@
 import threading
 from collections import deque
-# cython: language_level=3, boundscheck=False, wraparound=False
 from typing import Any, Callable, Dict, Generic, Iterable, Iterator, List, Tuple, \
     TypeVar, Union
 

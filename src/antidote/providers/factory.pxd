@@ -1,4 +1,6 @@
-# cython: language_level=3, boundscheck=False, wraparound=False
+# cython: language_level=3, language=c++
+# cython: boundscheck=False, wraparound=False
+# cython: linetrace=True
 # noinspection PyUnresolvedReferences
 from ..container cimport Dependency, Instance, Provider
 

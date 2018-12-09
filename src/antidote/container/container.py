@@ -1,17 +1,14 @@
-# cython: language_level=3, language=c++
-# cython: boundscheck=False, wraparound=False
-# cython: linetrace=True
 import threading
-from typing import List
+from abc import ABC, abstractmethod
+from typing import List, Optional
 
-# @formatter:off
-# noinspection PyUnresolvedReferences
-from .stack cimport InstantiationStack
-# @formatter:on
+from .stack import InstantiationStack
+from .._internal.utils import SlotReprMixin
 from ..exceptions import (DependencyCycleError, DependencyInstantiationError,
                           DependencyNotFoundError)
 
-cdef class DependencyContainer:
+
+class DependencyContainer:
     def __init__(self):
         self._providers = list()  # type: List[Provider]
         self._singletons = dict()
@@ -71,42 +68,34 @@ cdef class DependencyContainer:
     def __getitem__(self, dependency):
         return self.provide(dependency)
 
-    cpdef object provide(self, object dependency):
+    def provide(self, dependency):
         """
         Low level API for Cython functions.
         """
-        cdef:
-            Instance instance
-            Provider provider
-
         try:
             return self._singletons[dependency]
         except KeyError:
             pass
 
         try:
-            with self._instantiation_lock:
-                self._instantiation_stack.push(dependency)
+            with self._instantiation_lock, \
+                    self._instantiation_stack.instantiating(dependency):
                 try:
-                    try:
-                        return self._singletons[dependency]
-                    except KeyError:
-                        pass
+                    return self._singletons[dependency]
+                except KeyError:
+                    pass
 
-                    for provider in self._providers:
-                        instance = provider.provide(
-                            dependency
-                            if isinstance(dependency, Dependency) else
-                            Dependency(dependency)
-                        )
-                        if instance is not None:
-                            if instance.singleton:
-                                self._singletons[dependency] = instance.item
+                for provider in self._providers:
+                    instance = provider.provide(
+                        dependency
+                        if isinstance(dependency, Dependency) else
+                        Dependency(dependency)
+                    )
+                    if instance is not None:
+                        if instance.singleton:
+                            self._singletons[dependency] = instance.item
 
-                            return instance.item
-                finally:
-                    self._instantiation_stack.pop()
-
+                        return instance.item
 
         except DependencyCycleError:
             raise
@@ -116,14 +105,14 @@ cdef class DependencyContainer:
 
         raise DependencyNotFoundError(dependency)
 
-cdef class Dependency:
+
+class Dependency(SlotReprMixin):
+    __slots__ = ('id',)
+
     def __init__(self, id):
         assert id is not None
         assert not isinstance(id, Dependency)
         self.id = id
-
-    def __repr__(self):
-        return "{}(id={!r})".format(type(self).__name__, self.id)
 
     def __hash__(self):
         return hash(self.id)
@@ -132,7 +121,8 @@ cdef class Dependency:
         return (self.id == other
                 or (isinstance(other, Dependency) and self.id == other.id))
 
-cdef class Instance:
+
+class Instance(SlotReprMixin):
     """
     Simple wrapper which has to be used by providers when returning an
     instance of a dependency.
@@ -140,14 +130,14 @@ cdef class Instance:
     This enables the container to know if the returned dependency needs to
     be cached or not (singleton).
     """
+    __slots__ = ('item', 'singleton')
+
     def __init__(self, item, singleton: bool = False):  # pragma: no cover
         self.item = item
         self.singleton = singleton
 
-    def __repr__(self):
-        return "{}(item={!r}, singleton={!r})".format(type(self).__name__, self.item,
-                                                      self.singleton)
 
-cdef class Provider:
-    cpdef Instance provide(self, Dependency dependency):
-        raise NotImplementedError()
+class Provider(ABC):
+    @abstractmethod
+    def provide(self, dependency: Dependency) -> Optional[Instance]:
+        """"""

@@ -36,7 +36,6 @@ def generate_extensions():
                 module = path[4:].replace('/', '.').rsplit('.', 1)[0]
                 extensions.append(Extension(module,
                                             [path],
-                                            include_dirs=['src/'],
                                             language='c++'))
     return extensions
 
@@ -52,9 +51,7 @@ setup(
     packages=find_packages('src'),
     package_dir={'': 'src'},
     include_dirs=["src"],
-    install_requires=["wrapt"],
-    ext_modules=cythonize(generate_extensions(),
-                          language='c++', gdb_debug=True),
+    ext_modules=cythonize(generate_extensions()),
     extras_require={
         ":python_version<'3.5'": ["typing"],
         "docs": [
