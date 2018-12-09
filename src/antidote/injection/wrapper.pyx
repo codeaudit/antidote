@@ -1,6 +1,5 @@
 # cython: language_level=3, language=c++
 # cython: boundscheck=False, wraparound=False
-# cython: linetrace=True
 
 # @formatter:off
 cimport cython
@@ -83,15 +82,13 @@ cdef dict _inject_kwargs(DependencyContainer container,
         Injection injection
         object instance
         cbool dirty_kwargs = False
+        int i
 
-    for injection in blueprint.injections[offset:]:
+    for i in range(offset, len(blueprint.injections)):
+        injection = blueprint.injections[i]
         if injection.dependency_id is not None and injection.arg_name not in kwargs:
-            try:
-                instance = container.provide(injection.dependency_id)
-            except DependencyNotFoundError:
-                if injection.required:
-                    raise
-            else:
+            instance = container.provide(injection.dependency_id)
+            if injection is not None:
                 if not dirty_kwargs:
                     kwargs = kwargs.copy()
                     dirty_kwargs = True

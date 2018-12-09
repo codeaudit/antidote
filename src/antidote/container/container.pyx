@@ -1,15 +1,16 @@
 # cython: language_level=3, language=c++
 # cython: boundscheck=False, wraparound=False
-# cython: linetrace=True
 import threading
 from typing import List
 
 # @formatter:off
+from cpython.ref cimport PyObject
+from cpython.dict cimport PyDict_GetItem, PyDict_SetItem
+
 # noinspection PyUnresolvedReferences
 from .stack cimport InstantiationStack
 # @formatter:on
-from ..exceptions import (DependencyCycleError, DependencyInstantiationError,
-                          DependencyNotFoundError)
+from ..exceptions import (DependencyCycleError, DependencyInstantiationError)
 
 cdef class DependencyContainer:
     def __init__(self):
@@ -78,34 +79,30 @@ cdef class DependencyContainer:
         cdef:
             Instance instance
             Provider provider
+            PyObject* result
 
+        result = PyDict_GetItem(self._singletons, dependency)
+        if result != NULL:
+            return <object>result
+
+        self._instantiation_lock.acquire()
         try:
-            return self._singletons[dependency]
-        except KeyError:
-            pass
+            self._instantiation_stack.push(dependency)
+            result = PyDict_GetItem(self._singletons, dependency)
+            if result != NULL:
+                return <object>result
 
-        try:
-            with self._instantiation_lock:
-                self._instantiation_stack.push(dependency)
-                try:
-                    try:
-                        return self._singletons[dependency]
-                    except KeyError:
-                        pass
+            for provider in self._providers:
+                instance = provider.provide(
+                    dependency
+                    if isinstance(dependency, Dependency) else
+                    Dependency(dependency)
+                )
+                if instance is not None:
+                    if instance.singleton:
+                        self._singletons[dependency] = instance.item
 
-                    for provider in self._providers:
-                        instance = provider.provide(
-                            dependency
-                            if isinstance(dependency, Dependency) else
-                            Dependency(dependency)
-                        )
-                        if instance is not None:
-                            if instance.singleton:
-                                self._singletons[dependency] = instance.item
-
-                            return instance.item
-                finally:
-                    self._instantiation_stack.pop()
+                    return instance.item
 
 
         except DependencyCycleError:
@@ -114,7 +111,10 @@ cdef class DependencyContainer:
         except Exception as e:
             raise DependencyInstantiationError(dependency) from e
 
-        raise DependencyNotFoundError(dependency)
+        finally:
+            self._instantiation_stack.pop()
+            self._instantiation_lock.release()
+
 
 cdef class Dependency:
     def __init__(self, id):
