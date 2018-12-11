@@ -115,7 +115,7 @@ cdef class Build(Dependency):
 
         return hash(self.id)
 
-    def __eq__(self, other):
+    def __eq__(self, object other):
         return ((not self.kwargs and not self.args
                  and (self.id is other or self.id == other))
                 or (isinstance(other, Build)

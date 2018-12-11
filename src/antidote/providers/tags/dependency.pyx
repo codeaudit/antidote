@@ -45,5 +45,5 @@ cdef class Tagged(Dependency):
     def __hash__(self):
         return object.__hash__(self)
 
-    def __eq__(self, other):
+    def __eq__(self, object other):
         return object.__eq__(self, other)

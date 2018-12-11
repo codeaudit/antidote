@@ -1,16 +1,19 @@
 # cython: language_level=3, language=c++
-# cython: boundscheck=False, wraparound=False
+# cython: boundscheck=False, wraparound=False, annotation_typing=False
 import threading
 from typing import List
 
 # @formatter:off
-from cpython.ref cimport PyObject
+cimport cython
 from cpython.dict cimport PyDict_GetItem, PyDict_SetItem
+from cpython.object cimport PyObject_IsInstance
+from cpython.ref cimport PyObject
 
 # noinspection PyUnresolvedReferences
 from .stack cimport InstantiationStack
 # @formatter:on
-from ..exceptions import (DependencyCycleError, DependencyInstantiationError)
+from ..exceptions import (DependencyCycleError, DependencyInstantiationError,
+                          DependencyNotFoundError)
 
 cdef class DependencyContainer:
     def __init__(self):
@@ -18,6 +21,7 @@ cdef class DependencyContainer:
         self._singletons = dict()
         self._instantiation_lock = threading.RLock()
         self._instantiation_stack = InstantiationStack()
+        self.SENTINEL = object()
 
     @property
     def providers(self):
@@ -49,77 +53,75 @@ cdef class DependencyContainer:
         )
 
     def __setitem__(self, dependency_id, dependency):
-        """
-        Set a dependency in the cache.
-        """
         with self._instantiation_lock:
             self._singletons[dependency_id] = dependency
 
     def __delitem__(self, dependency_id):
-        """
-        Delete a dependency in the cache.
-        """
         with self._instantiation_lock:
             del self._singletons[dependency_id]
 
     def update(self, *args, **kwargs):
-        """
-        Update the cached dependencies.
-        """
         with self._instantiation_lock:
             self._singletons.update(*args, **kwargs)
 
-    def __getitem__(self, dependency):
-        return self.provide(dependency)
+    def __getitem__(self, dependency_id):
+        instance = self.provide(dependency_id)
+        if instance is self.SENTINEL:
+            raise DependencyNotFoundError(dependency_id)
+        return instance
 
-    cpdef object provide(self, object dependency):
+    cpdef object provide(self, object dependency_id):
         """
-        Low level API for Cython functions.
+        Low level API for the injection wrapper.
         """
         cdef:
             Instance instance
             Provider provider
-            PyObject* result
+            Dependency dependency
+            PyObject*ptr
+            Exception e
+            list stack
 
-        result = PyDict_GetItem(self._singletons, dependency)
-        if result != NULL:
-            return <object>result
+        ptr = PyDict_GetItem(self._singletons, dependency_id)
+        if ptr != NULL:
+            return <object> ptr
 
         self._instantiation_lock.acquire()
+        if 1 != self._instantiation_stack.push(dependency_id):
+            stack = self._instantiation_stack._stack.copy()
+            stack.append(dependency_id)
+            raise DependencyCycleError(stack)
+
         try:
-            self._instantiation_stack.push(dependency)
-            result = PyDict_GetItem(self._singletons, dependency)
-            if result != NULL:
-                return <object>result
+            ptr = PyDict_GetItem(self._singletons, dependency_id)
+            if ptr != NULL:
+                return <object> ptr
+
+            if 1 == PyObject_IsInstance(dependency_id, Dependency):
+                dependency = dependency_id
+            else:
+                dependency = Dependency.__new__(Dependency)
+                dependency.id = dependency_id
 
             for provider in self._providers:
-                instance = provider.provide(
-                    dependency
-                    if isinstance(dependency, Dependency) else
-                    Dependency(dependency)
-                )
+                instance = provider.provide(dependency)
                 if instance is not None:
                     if instance.singleton:
-                        self._singletons[dependency] = instance.item
-
+                        PyDict_SetItem(self._singletons, dependency_id, instance.item)
                     return instance.item
-
-
-        except DependencyCycleError:
-            raise
-
         except Exception as e:
-            raise DependencyInstantiationError(dependency) from e
-
+            if isinstance(e, DependencyCycleError):
+                raise
+            raise DependencyInstantiationError(dependency_id) from e
         finally:
             self._instantiation_stack.pop()
             self._instantiation_lock.release()
 
+        return self.SENTINEL
 
+@cython.freelist(10)
 cdef class Dependency:
     def __init__(self, id):
-        assert id is not None
-        assert not isinstance(id, Dependency)
         self.id = id
 
     def __repr__(self):
@@ -128,19 +130,13 @@ cdef class Dependency:
     def __hash__(self):
         return hash(self.id)
 
-    def __eq__(self, other):
+    def __eq__(self, object other):
         return (self.id == other
                 or (isinstance(other, Dependency) and self.id == other.id))
 
+@cython.freelist(10)
 cdef class Instance:
-    """
-    Simple wrapper which has to be used by providers when returning an
-    instance of a dependency.
-
-    This enables the container to know if the returned dependency needs to
-    be cached or not (singleton).
-    """
-    def __init__(self, item, singleton: bool = False):  # pragma: no cover
+    def __init__(self, item, singleton: bool = False):
         self.item = item
         self.singleton = singleton
 

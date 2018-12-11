@@ -1,10 +1,11 @@
 import collections.abc as c_abc
 import typing
+from functools import WRAPPER_ASSIGNMENTS
 from typing import (Callable, Iterable, Mapping, Union)
 
 from .wrapper import InjectedCallableWrapper, Injection, InjectionBlueprint
 from .._internal.argspec import get_arguments_specification
-from .._internal.container import get_global_container
+from .._internal.global_container import get_global_container
 from ..container import DependencyContainer
 
 
@@ -41,19 +42,28 @@ def inject(func: Callable = None,
 
     """
 
-    def _inject(f):
-        if isinstance(f, InjectedCallableWrapper):
-            return f
-        return InjectedCallableWrapper(
+    def _inject(wrapped):
+        if isinstance(wrapped, InjectedCallableWrapper):
+            return wrapped
+        wrapper = InjectedCallableWrapper(
             container=container or get_global_container(),
             blueprint=_generate_injection_blueprint(
-                func=f,
+                func=wrapped,
                 arg_map=arg_map,
                 use_names=use_names,
                 use_type_hints=use_type_hints
             ),
-            wrapped=f
+            wrapped=wrapped
         )
+        for attr in WRAPPER_ASSIGNMENTS:
+            try:
+                value = getattr(wrapper, attr)
+            except AttributeError:
+                pass
+            else:
+                setattr(wrapper, attr, value)
+
+        return wrapper
 
     return func and _inject(func) or _inject
 
@@ -71,23 +81,6 @@ def _generate_injection_blueprint(func: Callable,
     use_names = use_names if use_names is not None else False
     use_type_hints = use_type_hints if use_type_hints is not None else True
 
-    type_hints = None
-    if use_type_hints is not False:
-        try:
-            type_hints = typing.get_type_hints(func)
-        except Exception:
-            # Python 3.5.3 does not handle properly method wrappers
-            pass
-    type_hints = type_hints or dict()
-
-    if isinstance(use_type_hints, c_abc.Iterable):
-        type_hints = {arg_name: type_hint
-                      for arg_name, type_hint in type_hints.items()
-                      if arg_name in use_type_hints}
-    elif use_type_hints is not True and use_type_hints is not False:
-        raise ValueError('Only an iterable or a boolean is supported for '
-                         'use_type_hints, not {!r}'.format(use_names))
-
     arg_spec = get_arguments_specification(func)
 
     if arg_map is None:
@@ -102,9 +95,35 @@ def _generate_injection_blueprint(func: Callable,
         raise ValueError('Only a mapping or a iterable is supported for '
                          'arg_map, not {!r}'.format(arg_map))
 
+    # Remove any None as they would hide type_hints and use_names.
     arg_to_dependency = {k: v
                          for k, v in arg_to_dependency.items()
                          if v is not None}
+
+    type_hints = None
+    if use_type_hints is not False:
+        try:
+            type_hints = typing.get_type_hints(func)
+        except Exception:  # Python 3.5.3 does not handle properly method wrappers
+            pass
+    type_hints = type_hints or dict()
+
+    if isinstance(use_type_hints, c_abc.Iterable):
+        type_hints = {arg_name: type_hint
+                      for arg_name, type_hint in type_hints.items()
+                      if arg_name in use_type_hints}
+    elif use_type_hints is not True and use_type_hints is not False:
+        raise ValueError('Only an iterable or a boolean is supported for '
+                         'use_type_hints, not {!r}'.format(use_names))
+
+    # Any object from builtins or typing do not carry any useful information
+    # and thus must not be used as dependency IDs. So they might as well be
+    # skipped entirely. Moreover they hide use_names.
+    type_hints = {
+        arg_name: type_hint
+        for arg_name, type_hint in type_hints.items()
+        if getattr(type_hint, '__module__', '') not in {'typing', 'builtins'}
+    }
 
     if use_names is False:
         use_names = set()

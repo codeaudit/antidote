@@ -51,7 +51,7 @@ setup(
     packages=find_packages('src'),
     package_dir={'': 'src'},
     include_dirs=["src"],
-    ext_modules=cythonize(generate_extensions()),
+    ext_modules=cythonize(generate_extensions(), gdb_debug=True),
     extras_require={
         ":python_version<'3.5'": ["typing"],
         "docs": [

@@ -14,6 +14,7 @@ class DependencyContainer:
         self._singletons = dict()
         self._instantiation_lock = threading.RLock()
         self._instantiation_stack = InstantiationStack()
+        self.SENTINEL = object()
 
     @property
     def providers(self):
@@ -65,13 +66,13 @@ class DependencyContainer:
         with self._instantiation_lock:
             self._singletons.update(*args, **kwargs)
 
-    def __getitem__(self, dependency):
-        return self.provide(dependency)
+    def __getitem__(self, dependency_id):
+        instance = self.provide(dependency_id)
+        if instance is self.SENTINEL:
+            raise DependencyNotFoundError(dependency_id)
+        return instance
 
     def provide(self, dependency):
-        """
-        Low level API for Cython functions.
-        """
         try:
             return self._singletons[dependency]
         except KeyError:
@@ -103,7 +104,7 @@ class DependencyContainer:
         except Exception as e:
             raise DependencyInstantiationError(dependency) from e
 
-        raise DependencyNotFoundError(dependency)
+        return self.SENTINEL
 
 
 class Dependency(SlotReprMixin):
@@ -140,4 +141,19 @@ class Instance(SlotReprMixin):
 class Provider(ABC):
     @abstractmethod
     def provide(self, dependency: Dependency) -> Optional[Instance]:
-        """"""
+        """
+        Method called by the :py:class:`~.container.DependencyContainer` when
+        searching for a dependency.
+
+        All providers all called sequentially until one returns an
+        :py:class:`~.container.Instance`. Thus it is necessary to check quickly
+        if the dependency cannot be provided. A good practice is to subclass
+        :py:`~.container.Dependency` so they can be differentiated.
+
+        Args:
+            dependency: The dependency to be provided by the provider.
+
+        Returns:
+            The requested instance wrapped in a :py:class:`~.container.Instance`
+            if available or :py:`None`.
+        """

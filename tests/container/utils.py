@@ -10,7 +10,7 @@ class DummyProvider(Provider):
     def __setitem__(self, key, value):
         self.data[key] = value
 
-    def provide(self, dependency_id, *args, **kwargs):
+    def provide(self, dependency_id):
         try:
             return Instance(self.data[dependency_id],
                             singleton=self.singleton)
@@ -27,7 +27,7 @@ class DummyFactoryProvider(Provider):
     def __setitem__(self, key, value):
         self.data[key] = value
 
-    def provide(self, dependency_id, *args, **kwargs):
+    def provide(self, dependency_id):
         try:
             return Instance(self.data[dependency_id](),
                             singleton=self.create_singleton)

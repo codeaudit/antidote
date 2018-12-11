@@ -11,7 +11,7 @@ cdef class DependencyContainer:
         dict _singletons
         object _instantiation_lock
         InstantiationStack _instantiation_stack
-
+        readonly object SENTINEL
 
     cpdef object provide(self, object dependency)
 

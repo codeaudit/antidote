@@ -155,25 +155,12 @@ def getter_(func=None, **kwargs):
 getter_.__name__ = 'getter'
 
 
-def register_build(class_=None, container=None, arg_map=None, use_names=None,
-                   use_type_hints=None, **kwargs):
-    if kwargs.get('auto_wire', True):
-        class_.build = inject(class_.build, container=container, arg_map=arg_map,
-                              use_names=use_names, use_type_hints=use_type_hints)
-    return register(class_, factory='build', container=container, **kwargs)
+def register_build(class_=None, **kwargs):
+    return register(class_, factory='build', **kwargs)
 
 
-def register_external_build(class_=None, container=None, arg_map=None, use_names=None,
-                            use_type_hints=None, **kwargs):
-    if kwargs.get('auto_wire', True):
-        build_ = inject(build, container=container, arg_map=arg_map,
-                        use_names=use_names, use_type_hints=use_type_hints)
-    else:
-        build_ = build
-    return register(class_,
-                    factory=build_,
-                    container=container,
-                    **kwargs)
+def register_external_build(class_=None, **kwargs):
+    return register(class_, factory=build, **kwargs)
 
 
 class_one_inj_tests = [

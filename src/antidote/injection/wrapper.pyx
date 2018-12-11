@@ -1,8 +1,9 @@
 # cython: language_level=3, language=c++
-# cython: boundscheck=False, wraparound=False
+# cython: boundscheck=False, wraparound=False, annotation_typing=False
 
 # @formatter:off
 cimport cython
+from cpython.dict cimport PyDict_Contains, PyDict_Copy, PyDict_SetItem
 from libcpp cimport bool as cbool
 
 # noinspection PyUnresolvedReferences
@@ -40,6 +41,11 @@ cdef class Injection:
 
 cdef class InjectedCallableWrapper:
     cdef:
+        public __module__
+        public __name__
+        public __qualname__
+        public __doc__
+        public __annotations__
         object __wrapped
         DependencyContainer __container
         InjectionBlueprint __blueprint
@@ -86,12 +92,15 @@ cdef dict _inject_kwargs(DependencyContainer container,
 
     for i in range(offset, len(blueprint.injections)):
         injection = blueprint.injections[i]
-        if injection.dependency_id is not None and injection.arg_name not in kwargs:
+        if injection.dependency_id is not None \
+                and PyDict_Contains(kwargs, injection.arg_name) == 0:
             instance = container.provide(injection.dependency_id)
-            if injection is not None:
+            if instance is not container.SENTINEL:
                 if not dirty_kwargs:
-                    kwargs = kwargs.copy()
+                    kwargs = PyDict_Copy(kwargs)
                     dirty_kwargs = True
-                kwargs[injection.arg_name] = instance
+                PyDict_SetItem(kwargs, injection.arg_name, <object> instance)
+            elif injection.required:
+                raise DependencyNotFoundError(injection.dependency_id)
 
     return kwargs

@@ -10,9 +10,11 @@ from ...exceptions import DuplicateTagError
 
 T = TypeVar('T')
 
+from functools import wraps
 
 class TaggedDependencies(Generic[T]):
     def __init__(self, dependencies: Iterable[Tuple[Callable[..., T], Tag]]):
+        self._lock = threading.Lock()
         self._instances = []  # type: List[T]
         self._tags = []  # type: List[Tag]
         self._dependencies = deque()
@@ -20,8 +22,6 @@ class TaggedDependencies(Generic[T]):
         for dependency, tag in dependencies:
             self._dependencies.append(dependency)
             self._tags.append(tag)
-
-        self._lock = threading.Lock()
 
     def __iter__(self) -> Iterable[T]:
         return iter(self.dependencies())
@@ -41,7 +41,6 @@ class TaggedDependencies(Generic[T]):
             yield dependency
 
         i += 1
-
         while i < len(self):
             try:
                 yield self._instances[i]

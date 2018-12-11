@@ -1,8 +1,5 @@
 [run]
 branch = True
-plugins = Cython.Coverage
-omit =
-    *.pxd
 
 [html]
 directory = cov_html

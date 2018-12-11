@@ -3,43 +3,52 @@
 # cython: linetrace=True
 from contextlib import contextmanager
 
+# @formatter:off
+cimport cython
+from cpython.set cimport PySet_Contains
+
 from ..exceptions import DependencyCycleError
+# @formatter:on
 
+# Final class as its behavior can only be changed through a Cython class.
+@cython.final
 cdef class InstantiationStack:
-    """
-    Stores the stack of dependency instantiation to detect and prevent cycles
-    by raising DependencyCycleError.
-
-    Used in the DependencyContainer.
-
-    This class is not thread-safe by itself.
-    """
     def __init__(self):
         self._stack = list()
-        self._dependencies = set()
+        self._seen = set()
 
     @contextmanager
     def instantiating(self, dependency_id):
-        """
-        Context Manager which has to be used when instantiating the
-        dependency to keep track of the dependency path.
-
-        When a cycle is detected, a DependencyCycleError is raised.
-        """
-        self.push(dependency_id)
+        if 1 != self.push(dependency_id):
+            raise DependencyCycleError(self._stack.copy() + [dependency_id])
         try:
             yield
         finally:
             self.pop()
 
-    cpdef push(self, object dependency_id):
-        cdef list stack
-        if dependency_id in self._dependencies:
-            stack = self._stack + [dependency_id]
-            raise DependencyCycleError(stack)
+    cdef bint push(self, object dependency_id):
+        """
+        Args:
+            dependency_id: supposed to be hashable as the container tries to 
+                retrieves from a dictionary first. 
+
+        Returns:
+            0 if present in the stack
+            1 OK
+        """
+        cdef:
+            list stack
+            bint seen
+
+        if 1 == PySet_Contains(self._seen, dependency_id):
+            return 0
 
         self._stack.append(dependency_id)
-        self._dependencies.add(dependency_id)
+        self._seen.add(dependency_id)
+        return 1
 
-    cpdef pop(self):
-        self._dependencies.remove(self._stack.pop())
+    cdef pop(self):
+        """
+        Latest elements of the stack is removed.
+        """
+        self._seen.remove(self._stack.pop())

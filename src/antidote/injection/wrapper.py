@@ -22,7 +22,9 @@ class Injection(SlotReprMixin):
 
 
 class InjectedCallableWrapper:
-    __slots__ = ('__container', '__wrapped', '__blueprint', '__injection_offset')
+    __slots__ = ('__container', '__wrapped', '__blueprint', '__injection_offset',
+                 '__name__', '__doc__', '__qualname__', '__annotations__',
+                 '__wrapped_module')
 
     def __init__(self,
                  container: DependencyContainer,
@@ -33,6 +35,15 @@ class InjectedCallableWrapper:
         self.__wrapped = wrapped
         self.__blueprint = blueprint
         self.__injection_offset = 1 if skip_self else 0
+        self.__wrapped_module = ''
+
+    @property
+    def __module__(self):
+        return self.__wrapped_module
+
+    @__module__.setter
+    def __module__(self, value):
+        self.__wrapped_module = value
 
     def __call__(self, *args, **kwargs):
         kwargs = _inject_kwargs(
@@ -64,15 +75,13 @@ def _inject_kwargs(container: DependencyContainer,
     dirty_kwargs = False
     for injection in blueprint.injections[offset:]:
         if injection.dependency_id is not None and injection.arg_name not in kwargs:
-            try:
-                instance = container.provide(injection.dependency_id)
-            except DependencyNotFoundError:
-                if injection.required:
-                    raise
-            else:
+            instance = container.provide(injection.dependency_id)
+            if instance is not container.SENTINEL:
                 if not dirty_kwargs:
                     kwargs = kwargs.copy()
                     dirty_kwargs = True
                 kwargs[injection.arg_name] = instance
+            elif injection.required:
+                raise DependencyNotFoundError(injection.dependency_id)
 
     return kwargs

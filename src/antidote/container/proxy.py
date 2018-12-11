@@ -6,6 +6,9 @@ from ..exceptions import DependencyNotFoundError
 
 
 class ProxyContainer(DependencyContainer):
+    """
+    Proxy container which should only be used for mocking an testing.
+    """
     def __init__(self,
                  container: DependencyContainer,
                  dependencies: Mapping = None,
@@ -46,8 +49,8 @@ class ProxyContainer(DependencyContainer):
         elif dependencies is not None:
             raise ValueError("dependencies must be either a mapping or None")
 
-    def __getitem__(self, dependency):
+    def provide(self, dependency):
         if dependency in self._missing:
             raise DependencyNotFoundError(dependency)
 
-        return super().__getitem__(dependency)
+        return super().provide(dependency)

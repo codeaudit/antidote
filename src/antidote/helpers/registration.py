@@ -1,9 +1,11 @@
+import inspect
 import itertools
 from typing import Any, Callable, Iterable, Mapping, Sequence, Union, cast
 
-from .._internal.container import get_global_container
+from .._internal.global_container import get_global_container
 from .._internal.helpers import prepare_callable, prepare_class
 from ..container import DependencyContainer, Provider
+from ..injection import inject
 from ..providers import FactoryProvider, GetterProvider, Tag, TagProvider
 
 
@@ -76,7 +78,10 @@ def register(class_: type = None,
     def register_class(cls):
         nonlocal auto_wire, factory
         if auto_wire is None:
-            auto_wire = not factory
+            if isinstance(factory, str):
+                auto_wire = (factory,)
+            else:
+                auto_wire = factory is None
 
         cls = prepare_class(cls,
                             auto_wire=auto_wire,
@@ -85,10 +90,19 @@ def register(class_: type = None,
                             use_type_hints=use_type_hints,
                             container=container)
 
-        takes_dependency_id = callable(factory)
+        takes_dependency_id = False
         if isinstance(factory, str):
-            # TODO: check if classmethod
             factory = getattr(cls, factory)
+        elif callable(factory):
+            takes_dependency_id = True
+            factory = inject(factory,
+                             arg_map=arg_map,
+                             use_names=use_names,
+                             use_type_hints=use_type_hints,
+                             container=container)
+        elif factory is not None:
+            raise ValueError("factory must be either a method name or a callable, "
+                             "not {!r}".format(type(factory)))
 
         factory_provider = cast(FactoryProvider, container.providers[FactoryProvider])
         factory_provider.register(dependency_id=cls,

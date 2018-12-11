@@ -5,7 +5,7 @@
 cdef class InstantiationStack:
     cdef:
         list _stack
-        set _dependencies
+        set _seen
 
-    cpdef push(self, object dependency_id)
-    cpdef pop(self)
+    cdef bint push(self, object dependency_id)
+    cdef pop(self)

@@ -15,7 +15,7 @@ class InstantiationStack:
 
     def __init__(self):
         self._stack = list()
-        self._dependencies = set()
+        self._seen = set()
 
     @contextmanager
     def instantiating(self, dependency_id):
@@ -25,19 +25,12 @@ class InstantiationStack:
 
         When a cycle is detected, a DependencyCycleError is raised.
         """
-        self.push(dependency_id)
+        if dependency_id in self._seen:
+            raise DependencyCycleError(self._stack + [dependency_id])
+
+        self._stack.append(dependency_id)
+        self._seen.add(dependency_id)
         try:
             yield
         finally:
-            self.pop()
-
-    def push(self, dependency_id):
-        if dependency_id in self._dependencies:
-            stack = self._stack + [dependency_id]
-            raise DependencyCycleError(stack)
-
-        self._stack.append(dependency_id)
-        self._dependencies.add(dependency_id)
-
-    def pop(self):
-        self._dependencies.remove(self._stack.pop())
+            self._seen.remove(self._stack.pop())

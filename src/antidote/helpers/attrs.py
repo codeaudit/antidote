@@ -1,7 +1,7 @@
 from typing import Any, get_type_hints
 
 from ..container import DependencyContainer
-from .._internal.container import get_global_container
+from .._internal.global_container import get_global_container
 
 
 def attrib(dependency_id: Any = None,
