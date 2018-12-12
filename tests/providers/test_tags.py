@@ -82,7 +82,7 @@ def test_tagged_dependencies():
     tag1 = Tag('tag1')
     tag2 = Tag('tag2', dummy=True)
     t = TaggedDependencies(
-        dependencies=[
+        getter_tag_pairs=[
             (lambda: 'test', tag1),
             (lambda: 'test2', tag2)
         ]

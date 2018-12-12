@@ -38,7 +38,7 @@ class FactoryProvider(Provider):
         try:
             factory = self._factories[dependency.id]  # type: DependencyFactory
         except KeyError:
-            return
+            return None
 
         if isinstance(dependency, Build):
             args = dependency.args

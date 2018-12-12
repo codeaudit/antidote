@@ -212,7 +212,9 @@ def parametrize_injection(tests, lazy=False, return_wrapped=False,
                         or 'register_external' in name:
                     try:
                         if isinstance(inj_kwargs['arg_map'], tuple):
-                            inj_kwargs['arg_map'] = (None, *inj_kwargs['arg_map'])
+                            inj_kwargs['arg_map'] = (
+                                [None] + list(inj_kwargs['arg_map'])
+                            )
                     except KeyError:
                         pass
 

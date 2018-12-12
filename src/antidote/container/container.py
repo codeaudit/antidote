@@ -9,12 +9,13 @@ from ..exceptions import (DependencyCycleError, DependencyInstantiationError,
 
 
 class DependencyContainer:
+    SENTINEL = object()
+
     def __init__(self):
         self._providers = list()  # type: List[Provider]
         self._singletons = dict()
         self._instantiation_lock = threading.RLock()
         self._instantiation_stack = InstantiationStack()
-        self.SENTINEL = object()
 
     @property
     def providers(self):

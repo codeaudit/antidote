@@ -37,6 +37,8 @@ class GetterProvider(Provider):
                     else:
                         return Instance(instance, singleton=getter.singleton)
 
+        return None
+
     def register(self,
                  getter: Callable[[str], Any],
                  namespace: str,

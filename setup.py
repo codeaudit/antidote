@@ -3,7 +3,6 @@ import pathlib
 import shutil
 import sys
 
-from Cython.Build import cythonize
 from setuptools import Extension, find_packages, setup
 
 here = pathlib.Path(os.path.dirname(os.path.abspath(__file__)))
@@ -40,6 +39,15 @@ def generate_extensions():
     return extensions
 
 
+ext_modules = []
+
+try:
+    from Cython.Build import cythonize
+except ImportError:
+    pass
+else:
+    ext_modules = cythonize(generate_extensions())
+
 setup(
     name='antidote',
     use_scm_version=True,
@@ -51,7 +59,7 @@ setup(
     packages=find_packages('src'),
     package_dir={'': 'src'},
     include_dirs=["src"],
-    ext_modules=cythonize(generate_extensions(), gdb_debug=True),
+    ext_modules=ext_modules,
     extras_require={
         ":python_version<'3.5'": ["typing"],
         "docs": [

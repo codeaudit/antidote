@@ -8,6 +8,6 @@ def get_global_container() -> Optional[DependencyContainer]:
     return antidote.global_container
 
 
-def set_global_container(container: DependencyContainer):
+def set_global_container(container: Optional[DependencyContainer]):
     import antidote
     antidote.global_container = container

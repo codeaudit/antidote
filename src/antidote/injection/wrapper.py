@@ -22,10 +22,6 @@ class Injection(SlotReprMixin):
 
 
 class InjectedCallableWrapper:
-    __slots__ = ('__container', '__wrapped', '__blueprint', '__injection_offset',
-                 '__name__', '__doc__', '__qualname__', '__annotations__',
-                 '__wrapped_module')
-
     def __init__(self,
                  container: DependencyContainer,
                  blueprint: InjectionBlueprint,
@@ -35,15 +31,6 @@ class InjectedCallableWrapper:
         self.__wrapped = wrapped
         self.__blueprint = blueprint
         self.__injection_offset = 1 if skip_self else 0
-        self.__wrapped_module = ''
-
-    @property
-    def __module__(self):
-        return self.__wrapped_module
-
-    @__module__.setter
-    def __module__(self, value):
-        self.__wrapped_module = value
 
     def __call__(self, *args, **kwargs):
         kwargs = _inject_kwargs(
@@ -62,8 +49,6 @@ class InjectedCallableWrapper:
 
 
 class InjectedBoundCallableWrapper(InjectedCallableWrapper):
-    __slots__ = ()
-
     def __get__(self, instance, owner):
         return self
 

@@ -36,13 +36,6 @@ def test_invalid_provider(container):
             pass
 
     with pytest.raises(TypeError):
-        # FIXME
-        raise TypeError()
-        @provider(container=container)
-        class MissingAntidoteProvideMethod(Provider):
-            pass
-
-    with pytest.raises(TypeError):
         @provider(auto_wire=False, container=container)
         class MissingDependencyProvider(Provider):
             def __init__(self, service):

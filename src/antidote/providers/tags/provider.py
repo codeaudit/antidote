@@ -1,7 +1,7 @@
 import threading
 from collections import deque
 from typing import Any, Callable, Dict, Generic, Iterable, Iterator, List, Tuple, \
-    TypeVar, Union
+    TypeVar, Union, Deque, Optional
 
 from .dependency import Tag, Tagged
 # noinspection PyUnresolvedReferences
@@ -10,17 +10,16 @@ from ...exceptions import DuplicateTagError
 
 T = TypeVar('T')
 
-from functools import wraps
 
 class TaggedDependencies(Generic[T]):
-    def __init__(self, dependencies: Iterable[Tuple[Callable[..., T], Tag]]):
+    def __init__(self, getter_tag_pairs: Iterable[Tuple[Callable[..., T], Tag]]):
         self._lock = threading.Lock()
         self._instances = []  # type: List[T]
         self._tags = []  # type: List[Tag]
-        self._dependencies = deque()
+        self._getters = deque()  # type: Deque[Callable]
 
-        for dependency, tag in dependencies:
-            self._dependencies.append(dependency)
+        for getter, tag in getter_tag_pairs:
+            self._getters.append(getter)
             self._tags.append(tag)
 
     def __iter__(self) -> Iterable[T]:
@@ -47,7 +46,7 @@ class TaggedDependencies(Generic[T]):
             except IndexError:
                 with self._lock:
                     try:
-                        getter = self._dependencies.popleft()
+                        getter = self._getters.popleft()
                     except IndexError:
                         pass
                     else:
@@ -67,11 +66,11 @@ class TagProvider(Provider):
             self._tagged_dependencies
         )
 
-    def provide(self, dependency: Dependency) -> Instance:
+    def provide(self, dependency: Dependency) -> Optional[Instance]:
         if isinstance(dependency, Tagged):
             return Instance(
                 TaggedDependencies(
-                    dependencies=(
+                    getter_tag_pairs=(
                         ((lambda d=tagged_dependency: self._container[d]), tag)
                         for tagged_dependency, tag
                         in self._tagged_dependencies.get(dependency.name, {}).items()
@@ -82,6 +81,8 @@ class TagProvider(Provider):
                 # are singletons or not is their decision to take.
                 singleton=False
             )
+
+        return None
 
     def register(self, dependency: Any, tags: Iterable[Union[str, Tag]]):
         for tag in tags:

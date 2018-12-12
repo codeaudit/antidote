@@ -21,6 +21,7 @@ cdef class DependencyContainer:
         self._singletons = dict()
         self._instantiation_lock = threading.RLock()
         self._instantiation_stack = InstantiationStack()
+        # class attributes do not exist in Cython
         self.SENTINEL = object()
 
     @property
