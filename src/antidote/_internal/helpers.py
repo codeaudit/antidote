@@ -6,6 +6,9 @@ from ..injection.wiring import wire
 
 
 def prepare_class(cls, auto_wire, **inject_kwargs):
+    """
+    Used by the helpers to wire a class automatically.
+    """
     if not inspect.isclass(cls):
         raise ValueError("Expecting a class, got a {}".format(type(cls)))
 
@@ -20,6 +23,10 @@ def prepare_class(cls, auto_wire, **inject_kwargs):
 
 
 def prepare_callable(obj, auto_wire, **inject_kwargs):
+    """
+    Used by the helpers to wire a callable, or a class implementing __call__,
+    automatically.
+    """
     if inspect.isclass(obj):
         # Only way to accurately test if obj has really a __call__()
         # method.

@@ -41,12 +41,12 @@ cdef class Injection:
 
 cdef class InjectedCallableWrapper:
     cdef:
-        public __module__
-        public __name__
-        public __qualname__
-        public __doc__
-        public __annotations__
-        object __wrapped
+        public object __wrapped__
+        public str __module__
+        public str __name__
+        public str __qualname__
+        public str __doc__
+        public dict __annotations__
         DependencyContainer __container
         InjectionBlueprint __blueprint
         int __injection_offset
@@ -56,8 +56,8 @@ cdef class InjectedCallableWrapper:
                  InjectionBlueprint blueprint,
                  object wrapped,
                  cbool skip_self = False):
+        self.__wrapped__ = wrapped
         self.__container = container
-        self.__wrapped = wrapped
         self.__blueprint = blueprint
         self.__injection_offset = 1 if skip_self else 0
 
@@ -68,11 +68,11 @@ cdef class InjectedCallableWrapper:
             self.__injection_offset + len(args),
             kwargs
         )
-        return self.__wrapped(*args, **kwargs)
+        return self.__wrapped__(*args, **kwargs)
 
     def __get__(self, instance, owner):
         skip_self = instance is not None
-        func = self.__wrapped.__get__(instance, owner)
+        func = self.__wrapped__.__get__(instance, owner)
         return InjectedBoundCallableWrapper(self.__container, self.__blueprint,
                                             func, skip_self=skip_self)
 

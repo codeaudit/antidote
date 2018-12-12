@@ -149,12 +149,12 @@ class Provider(ABC):
         All providers all called sequentially until one returns an
         :py:class:`~.container.Instance`. Thus it is necessary to check quickly
         if the dependency cannot be provided. A good practice is to subclass
-        :py:`~.container.Dependency` so they can be differentiated.
+        :py:class:`~.container.Dependency` so they can be differentiated.
 
         Args:
             dependency: The dependency to be provided by the provider.
 
         Returns:
             The requested instance wrapped in a :py:class:`~.container.Instance`
-            if available or :py:`None`.
+            if available or :py:obj:`None`.
         """

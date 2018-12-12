@@ -1,6 +1,6 @@
 import pytest
 
-from antidote._internal.argspec import Argument, ArgumentSpecification, \
+from antidote._internal.argspec import Argument, Arguments, \
     get_arguments_specification
 
 
@@ -41,7 +41,7 @@ d = Dummy()
     [
         pytest.param(
             f,
-            ArgumentSpecification(
+            Arguments(
                 arguments=tuple([
                     Argument('a', False),
                     Argument('b', False),
@@ -54,7 +54,7 @@ d = Dummy()
         ),
         pytest.param(
             g,
-            ArgumentSpecification(
+            Arguments(
                 arguments=tuple([
                     Argument('a', False),
                 ]),
@@ -65,7 +65,7 @@ d = Dummy()
         ),
         pytest.param(
             h,
-            ArgumentSpecification(
+            Arguments(
                 arguments=tuple([
                     Argument('b', True),
                 ]),
@@ -76,7 +76,7 @@ d = Dummy()
         ),
         pytest.param(
             k,
-            ArgumentSpecification(
+            Arguments(
                 arguments=tuple([]),
                 has_var_positional=False,
                 has_var_keyword=False,
@@ -85,7 +85,7 @@ d = Dummy()
         ),
         pytest.param(
             Dummy.f,
-            ArgumentSpecification(
+            Arguments(
                 arguments=tuple([
                     Argument('self', False),
                     Argument('a', False),
@@ -98,7 +98,7 @@ d = Dummy()
         ),
         pytest.param(
             Dummy.g,
-            ArgumentSpecification(
+            Arguments(
                 arguments=tuple([
                     Argument('a', False),
                 ]),
@@ -109,7 +109,7 @@ d = Dummy()
         ),
         pytest.param(
             Dummy.h,
-            ArgumentSpecification(
+            Arguments(
                 arguments=tuple([]),
                 has_var_positional=False,
                 has_var_keyword=False,
@@ -118,7 +118,7 @@ d = Dummy()
         ),
         pytest.param(
             d.f,
-            ArgumentSpecification(
+            Arguments(
                 arguments=tuple([
                     Argument('a', False),
                     Argument('b', True),
@@ -130,7 +130,7 @@ d = Dummy()
         ),
         pytest.param(
             d.g,
-            ArgumentSpecification(
+            Arguments(
                 arguments=tuple([
                     Argument('a', False),
                 ]),
@@ -141,7 +141,7 @@ d = Dummy()
         ),
         pytest.param(
             d.h,
-            ArgumentSpecification(
+            Arguments(
                 arguments=tuple([]),
                 has_var_positional=False,
                 has_var_keyword=False,
@@ -150,9 +150,9 @@ d = Dummy()
         ),
     ]
 )
-def test_arg_spec(func, expected: ArgumentSpecification):
+def test_arg_spec(func, expected: Arguments):
     result = get_arguments_specification(func)
-    assert isinstance(result, ArgumentSpecification)
+    assert isinstance(result, Arguments)
     assert expected.has_var_positional == result.has_var_positional
     assert expected.has_var_keyword == result.has_var_keyword
 

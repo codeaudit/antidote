@@ -2,6 +2,10 @@ from itertools import chain
 
 
 class SlotReprMixin:
+    """
+    Used by all classes using __slots__ to generate an helpful repr with all
+    the defined fields.
+    """
     __slots__ = ()
 
     def __repr__(self):

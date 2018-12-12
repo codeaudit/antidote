@@ -5,16 +5,12 @@ from .utils import SlotReprMixin
 
 
 class Argument(SlotReprMixin):
-    __slots__ = ('name', 'has_default')
-
     def __init__(self, name: str, has_default: bool):
         self.name = name
         self.has_default = has_default
 
 
-class ArgumentSpecification(SlotReprMixin):
-    __slots__ = ('arguments', 'has_var_positional', 'has_var_keyword')
-
+class Arguments:
     def __init__(self,
                  arguments: Sequence[Argument],
                  has_var_positional: bool,
@@ -23,10 +19,17 @@ class ArgumentSpecification(SlotReprMixin):
         self.has_var_positional = has_var_positional
         self.has_var_keyword = has_var_keyword
 
+    def __iter__(self):
+        return iter(self.arguments)
 
-def get_arguments_specification(func: Callable) -> ArgumentSpecification:
+
+def get_arguments_specification(func: Callable) -> Arguments:
     """
-    Extract the name and if a default is set for each argument.
+    Extract for each argument its name and if a default is set.
+    Whether the function accepts *args and/or **kwargs is also extracted.
+
+    Currently only used in the injection to determine all arguments which may
+    need injection.
     """
     arguments = []
     has_var_positional = False
@@ -43,6 +46,6 @@ def get_arguments_specification(func: Callable) -> ArgumentSpecification:
                 has_default=parameter.default is not parameter.empty
             ))
 
-    return ArgumentSpecification(arguments=tuple(arguments),
-                                 has_var_positional=has_var_positional,
-                                 has_var_keyword=has_var_keyword)
+    return Arguments(arguments=tuple(arguments),
+                     has_var_positional=has_var_positional,
+                     has_var_keyword=has_var_keyword)
