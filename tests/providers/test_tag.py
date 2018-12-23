@@ -2,7 +2,7 @@ import pytest
 
 from antidote.container import DependencyContainer, Instance
 from antidote.exceptions import DuplicateTagError
-from antidote.providers.tags import Tag, TagProvider, Tagged, TaggedDependencies
+from antidote.providers.tag import Tag, TagProvider, Tagged, TaggedDependencies
 
 
 def test_repr():
@@ -40,7 +40,7 @@ def test_invalid_tag():
 
 def test_provide_tags():
     container = DependencyContainer()
-    container.update(dict(test=object(), test2=object()))
+    container.update_singletons(dict(test=object(), test2=object()))
     provider = TagProvider(container)
     provider.register('test', ['tag1', Tag('tag2', error=True)])
     provider.register('test2', ['tag2'])
@@ -67,15 +67,6 @@ def test_provide_tags():
     assert 'tag2' == result[container['test2']].name
     assert 'tag2' == result[container['test']].name
     assert result[container['test']].error
-
-    result = provider.provide(Tagged('tag2',
-                                     filter=lambda t: t.error is not True))
-    assert isinstance(result, Instance)
-    assert result.singleton is False
-    assert 1 == len(result.item)
-
-    result = dict(result.item.items())
-    assert 'tag2' == result[container['test2']].name
 
 
 def test_tagged_dependencies():

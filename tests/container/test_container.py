@@ -53,7 +53,7 @@ def test_update(container: DependencyContainer):
     another_service = AnotherService()
     x = object()
 
-    container.update({
+    container.update_singletons({
         Service: another_service,
         'x': x
     })
@@ -62,7 +62,7 @@ def test_update(container: DependencyContainer):
     assert x is container['x']
 
 
-def test_extend(container: DependencyContainer):
+def test_register_provider(container: DependencyContainer):
     provider = DummyProvider()
     container.register_provider(provider)
 
@@ -128,3 +128,8 @@ def test_repr_str(container: DependencyContainer):
     assert 'test' in repr(container)
     assert repr(container.providers[DummyProvider]) in repr(container)
     assert str(container.providers[DummyProvider]) in str(container)
+
+
+def test_invalid_provider(container: DependencyContainer):
+    with pytest.raises(ValueError):
+        container.register_provider(object())

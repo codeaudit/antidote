@@ -28,7 +28,7 @@ class ProxyContainer(DependencyContainer):
 
         existing_singletons = container.singletons
         if include is None:
-            self.update(existing_singletons)
+            self.update_singletons(existing_singletons)
         elif isinstance(include, c_abc.Iterable):
             for dependency in include:
                 self[dependency] = existing_singletons[dependency]
@@ -45,12 +45,12 @@ class ProxyContainer(DependencyContainer):
             raise ValueError("exclude must be either an iterable or None")
 
         if isinstance(dependencies, c_abc.Mapping):
-            self.update(dependencies)
+            self.update_singletons(dependencies)
         elif dependencies is not None:
             raise ValueError("dependencies must be either a mapping or None")
 
-    def provide(self, dependency):
-        if dependency in self._missing:
-            raise DependencyNotFoundError(dependency)
+    def provide(self, dependency_id):
+        if dependency_id in self._missing:
+            raise DependencyNotFoundError(dependency_id)
 
-        return super().provide(dependency)
+        return super().provide(dependency_id)

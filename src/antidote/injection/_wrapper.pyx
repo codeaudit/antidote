@@ -11,15 +11,7 @@ from ..container cimport DependencyContainer, DependencyContainer, Instance
 from ..exceptions import DependencyNotFoundError
 # @formatter:on
 
-
-cdef class InjectionBlueprint:
-    cdef:
-        tuple injections
-
-    def __init__(self, tuple injections):
-        self.injections = injections
-
-@cython.freelist(5)
+@cython.freelist(10)
 cdef class Injection:
     cdef:
         readonly str arg_name
@@ -39,8 +31,17 @@ cdef class Injection:
         self.required = required
         self.dependency_id = dependency_id
 
+cdef class InjectionBlueprint:
+    cdef:
+        readonly tuple injections
+
+    def __init__(self, tuple injections):
+        self.injections = injections
+
 cdef class InjectedCallableWrapper:
     cdef:
+        # public attributes as those are going to be overwritten by
+        # functools.wraps()
         public object __wrapped__
         public str __module__
         public str __name__

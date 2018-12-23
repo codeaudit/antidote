@@ -1,7 +1,7 @@
 import pytest
 
 from antidote import Tag, Tagged
-from antidote.helpers import factory, getter, new_container, register
+from antidote.helpers import factory, resource, new_container, register
 
 
 class Service:
@@ -37,7 +37,7 @@ tag_tests = [
 ]
 
 singleton_tests = tag_tests + [
-    [getter, conf]
+    [resource, conf]
 ]
 
 
@@ -55,7 +55,7 @@ def parametrize_registration(tests, **kwargs):
 
             if wrapper == register:
                 dependency_id = wrapped
-            elif wrapper == getter:
+            elif wrapper == resource:
                 dependency_id = 'conf:test'
             else:
                 dependency_id = Service

@@ -73,3 +73,10 @@ class GetterNamespaceConflict(AntidoteError):
     At least two namespaces conflict with each other.
     Raised by the GetterProvider.
     """
+
+
+class GetterPriorityConflict(AntidoteError):
+    """
+    Two getters having the same namespace have also the same priority.
+    Raised by the GetterProvider.
+    """

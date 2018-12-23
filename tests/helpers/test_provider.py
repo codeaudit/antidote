@@ -2,8 +2,8 @@ import pytest
 
 from antidote import DependencyNotProvidableError, Instance, Provider
 from antidote.helpers import new_container, provider
-from antidote.providers import FactoryProvider, GetterProvider
-from antidote.providers.tags import TagProvider
+from antidote.providers import FactoryProvider, ResourceProvider
+from antidote.providers.tag import TagProvider
 
 
 @pytest.fixture()
@@ -48,7 +48,7 @@ def test_invalid_provider(container):
 def test_providers(container):
     assert 3 == len(container.providers)
     assert FactoryProvider in container.providers
-    assert GetterProvider in container.providers
+    assert ResourceProvider in container.providers
     assert TagProvider in container.providers
 
     @provider(container=container)

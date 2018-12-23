@@ -4,8 +4,8 @@
 # noinspection PyUnresolvedReferences
 from ..container cimport Dependency, Instance, Provider
 
-cdef class GetterProvider(Provider):
+cdef class ResourceProvider(Provider):
     cdef:
-        list _dependency_getters
+        public dict _priority_sorted_getters_by_namespace
 
     cpdef Instance provide(self, Dependency dependency)

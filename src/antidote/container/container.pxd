@@ -2,7 +2,7 @@
 # cython: boundscheck=False, wraparound=False
 # cython: linetrace=True
 # noinspection PyUnresolvedReferences
-from .stack cimport InstantiationStack
+from ._stack cimport InstantiationStack
 
 cdef class DependencyContainer:
     cdef:

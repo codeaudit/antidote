@@ -1,6 +1,6 @@
 import pytest
 
-from antidote.container.stack import InstantiationStack
+from antidote.container._stack import InstantiationStack
 from antidote.exceptions import DependencyCycleError
 
 

@@ -5,10 +5,60 @@ from ..container import Dependency, Instance, Provider
 from ..exceptions import DuplicateDependencyError
 
 
+class Build(Dependency):
+    """
+    Custom Dependency used to pass arguments to the factory used to create
+    the given dependency ID.
+
+    .. doctest::
+
+        >>> from antidote import factory, Build, global_container
+        >>> @factory(dependency_id='test')
+        ... def f(name):
+        ...     return {'name': name}
+        >>> global_container[Build('test', name='me')]
+        {'name': 'me'}
+
+    With no arguments, that is to say :code:`Build(dependency_id)`, it is
+    equivalent to :code:`dependency_id` for the
+    :py:class:`~.container.DependencyContainer`.
+    """
+    __slots__ = ('args', 'kwargs')
+
+    def __init__(self, *args, **kwargs):
+        """
+        Args:
+            *args: The first argument is the dependency ID, all others are
+                passed on to the factory.
+            **kwargs: Passed on to the factory.
+        """
+        super().__init__(args[0])
+        self.args = args[1:]  # type: Tuple
+        self.kwargs = kwargs  # type: Dict
+
+    def __hash__(self):
+        if self.args or self.kwargs:
+            try:
+                # Try most precise hash first
+                return hash((self.id, self.args, tuple(self.kwargs.items())))
+            except TypeError:
+                # If type error, return the best error-free hash possible
+                return hash((self.id, len(self.args), tuple(self.kwargs.keys())))
+
+        return hash(self.id)
+
+    def __eq__(self, other):
+        return ((not self.kwargs and not self.args
+                 and (self.id is other or self.id == other))
+                or (isinstance(other, Build)
+                    and (self.id is other.id or self.id == other.id)
+                    and self.args == other.args
+                    and self.kwargs == other.kwargs))
+
+
 class FactoryProvider(Provider):
     """
-    Provider managing factories. When a dependency is requested, it tries
-    to find a matching factory and builds it. Subclasses may also be built.
+    Provider managing factories. Also used to register classes directly.
     """
 
     def __init__(self):
@@ -24,17 +74,13 @@ class FactoryProvider(Provider):
 
     def provide(self, dependency: Dependency) -> Optional[Instance]:
         """
-        Builds the dependency if a factory associated with the dependency_id
-        can be found.
 
         Args:
-            dependency: dependency to provide.
+            dependency:
 
         Returns:
-            A :py:class:`~.container.Instance` wrapping the built instance for
-            the dependency.
-        """
 
+        """
         try:
             factory = self._factories[dependency.id]  # type: DependencyFactory
         except KeyError:
@@ -59,16 +105,16 @@ class FactoryProvider(Provider):
                  singleton: bool = True,
                  takes_dependency_id: bool = False):
         """
-        Register a factory for a dependency.
+        Register a factory for a dependency ID.
 
         Args:
             dependency_id: ID of the dependency.
             factory: Callable used to instantiate the dependency.
             singleton: Whether the dependency should be mark as singleton or
                 not for the :py:class:`~..container.DependencyContainer`.
-            takes_dependency_id: If True, subclasses will also be build with this
-                factory. If multiple factories are defined, the first in the
-                MRO is used.
+            takes_dependency_id: If True, the factory will be given the requested
+                dependency ID as its first arguments. This allows re-using the
+                same factory for different dependencies.
         """
         if not callable(factory):
             raise ValueError("The `factory` must be callable.")
@@ -88,9 +134,10 @@ class FactoryProvider(Provider):
 
 class DependencyFactory(SlotReprMixin):
     """
-    Only used by the FactoryProvider, not part of the public API.
+    Not part of the public API.
 
-    Simple container to store information on how the factory has to be used.
+    Only used by the FactoryProvider to store information on how the factory
+    has to be used.
     """
     __slots__ = ('factory', 'singleton', 'takes_dependency_id')
 
@@ -101,31 +148,3 @@ class DependencyFactory(SlotReprMixin):
 
     def __call__(self, *args, **kwargs):
         return self.factory(*args, **kwargs)
-
-
-class Build(Dependency):
-    __slots__ = ('args', 'kwargs')
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(args[0])
-        self.args = args[1:]  # type: Tuple
-        self.kwargs = kwargs  # type: Dict
-
-    def __hash__(self):
-        if self.args or self.kwargs:
-            try:
-                # Try most precise hash first
-                return hash((self.id, self.args, tuple(self.kwargs.items())))
-            except TypeError:
-                # If type error, return the best error-free hash possible
-                return hash((self.id, len(self.args), tuple(self.kwargs.keys())))
-
-        return hash(self.id)
-
-    def __eq__(self, other):
-        return ((not self.kwargs and not self.args
-                 and (self.id is other or self.id == other))
-                or (isinstance(other, Build)
-                    and (self.id is other.id or self.id == other.id)
-                    and self.args == other.args
-                    and self.kwargs == other.kwargs))

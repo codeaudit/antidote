@@ -70,6 +70,7 @@ setup(
         ],
         "tests": [
             "pytest",
+            "pytest-cov",
             "hypothesis"
         ]
     },

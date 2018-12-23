@@ -2,7 +2,7 @@ import pytest
 
 from antidote import (DependencyInstantiationError, DependencyNotProvidableError,
                       Provider)
-from antidote.helpers import factory, getter, new_container, provider, register
+from antidote.helpers import factory, new_container, provider, register, resource
 from antidote.injection import inject, wire
 
 
@@ -26,9 +26,10 @@ class SuperService:
 def container():
     c = new_container()
 
-    c.update({cls: cls() for cls in [Service, AnotherService, YetAnotherService]})
-    c.update(dict(service=object(),
-                  another_service=object()))
+    c.update_singletons({cls: cls() for cls in [Service, AnotherService,
+                                                YetAnotherService]})
+    c.update_singletons(dict(service=object(),
+                             another_service=object()))
 
     return c
 
@@ -149,7 +150,7 @@ wire_.__name__ = 'wire'
 
 
 def getter_(func=None, **kwargs):
-    return getter(func=func, namespace='my_service:', **kwargs)
+    return resource(func=func, namespace='my_service', **kwargs)
 
 
 getter_.__name__ = 'getter'
@@ -294,6 +295,22 @@ def test_type_hints_only_another_service(container, create_instance):
         instance = create_instance()
         if callable(instance):
             instance()
+
+
+@parametrize_injection(all_tests,
+                       arg_map=lambda s: AnotherService if s == 'service' else None)
+def test_arg_map_func_override(container, instance: MyService):
+    assert instance.service is container[AnotherService]
+    assert instance.another_service is None
+
+
+@parametrize_injection(
+    all_tests,
+    arg_map=lambda s: AnotherService if s == 'another_service' else None
+)
+def test_arg_map_func(container, instance: MyService):
+    assert instance.service is container[Service]
+    assert instance.another_service is container[AnotherService]
 
 
 @parametrize_injection(all_tests,

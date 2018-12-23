@@ -3,13 +3,13 @@ from typing import Iterable, Mapping
 
 from .._internal.global_container import get_global_container, set_global_container
 from ..container import DependencyContainer, ProxyContainer
-from ..providers import FactoryProvider, GetterProvider, TagProvider
+from ..providers import FactoryProvider, ResourceProvider, TagProvider
 
 
 def new_container() -> DependencyContainer:
     container = DependencyContainer()
     container.register_provider(FactoryProvider())
-    container.register_provider(GetterProvider())
+    container.register_provider(ResourceProvider())
     container.register_provider(TagProvider(container))
 
     return container
@@ -25,11 +25,12 @@ def context(dependencies: Mapping = None,
     dependencies available or not. Any changes will be discarded at the
     end.
 
-    >>> import antidote
-    >>> with antidote.context(include=[]):
-    ...     # Your code isolated from every other dependencies
-    ...     antidote.container[DependencyContainer]
-    <... DependencyContainer ...>
+    .. doctest::
+
+        >>> import antidote
+        >>> with antidote.context(include=[]):
+        ...     # Your code isolated from every other dependencies
+        ...     pass
 
     The :py:class:`~antidote.DependencyInjector` and the
     :py:class:`~antidote.DependencyContainer` will still be accessible.

@@ -1,16 +1,15 @@
-import typing as _t
-
 import pkg_resources as _pkg_resources
 
 from .container import Dependency, DependencyContainer, Instance, Provider
 from .exceptions import (AntidoteError, DependencyCycleError,
                          DependencyInstantiationError, DependencyNotFoundError,
                          DependencyNotProvidableError, DuplicateDependencyError)
-from .helpers import attrib, context, factory, getter, provider, register, new_container
-from .injection import inject
-from .providers import FactoryProvider, GetterProvider, TagProvider
+from .helpers import (attrib, context, factory, new_container, provider, register,
+                      resource)
+from .injection import inject, wire
+from .providers import FactoryProvider, ResourceProvider, TagProvider
 from .providers.factory import Build
-from .providers.tags import Tag, Tagged, TaggedDependencies
+from .providers.tag import Tag, Tagged, TaggedDependencies
 
 try:
     __version__ = _pkg_resources.get_distribution(__name__).version
@@ -31,17 +30,17 @@ __all__ = [
     'DependencyInstantiationError',
     'Dependency',
     'FactoryProvider',
-    'GetterProvider',
+    'ResourceProvider',
     'Tag',
     'Tagged',
     'TaggedDependencies',
     'TagProvider',
     'register',
     'factory',
-    'getter',
+    'resource',
     'provider',
     'attrib',
     'context'
 ]
 
-global_container = None  # type: _t.Optional[DependencyContainer]
+global_container = new_container()

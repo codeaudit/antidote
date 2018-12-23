@@ -27,7 +27,7 @@ def make_delayed_factory(factory_, a=0.01, b=0.01):
 @pytest.fixture()
 def container():
     c = new_container()
-    c.update({Service: Service(), 'parameter': object()})
+    c.update_singletons({Service: Service(), 'parameter': object()})
 
     return c
 

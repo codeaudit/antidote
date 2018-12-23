@@ -1,16 +1,26 @@
+import builtins
 import collections.abc as c_abc
 import typing
 from functools import wraps
 from typing import Any, Callable, Dict, Iterable, Mapping, Set, Union
 
-from .wrapper import InjectedCallableWrapper, Injection, InjectionBlueprint
+from ._wrapper import InjectedCallableWrapper, Injection, InjectionBlueprint
 from .._internal.argspec import Arguments, get_arguments_specification
 from .._internal.global_container import get_global_container
 from ..container import DependencyContainer
 
+_BUILTINS_TYPES = {e for e in builtins.__dict__.values() if isinstance(e, type)}
+ARG_MAP_TYPE = Union[
+    Mapping[str, Any],  # {arg_name: dependency, ...}
+    Iterable[Any],   # (dependency for arg 1, ...)
+    Callable[[str], Any],  # arg_name -> dependency
+    str  # str.format(name=arg_name) -> dependency
+]
+
 
 def inject(func: Callable = None,
-           arg_map: Union[Mapping, Iterable] = None,
+           *,
+           arg_map: ARG_MAP_TYPE = None,
            use_names: Union[bool, Iterable[str]] = None,
            use_type_hints: Union[bool, Iterable[str]] = None,
            container: DependencyContainer = None
@@ -19,12 +29,19 @@ def inject(func: Callable = None,
     Inject the dependency into the function lazily, they are only retrieved
     upon execution. Can be used as a decorator.
 
+    Dependency IDs must NOT be:
+    - part of the builtins
+    - part of typing
+    - None
+
     Args:
         func: Callable to be wrapped.
         arg_map: Can be either a mapping of arguments name to their dependency
-            id, or an iterable of dependency ids. Their position is used to
-            determine the respective argument. An argument may be skipped by
-            using `None` as as placeholder. Type hints are overridden. Defaults
+            id, an iterable of dependency ids or a function which returns the
+            dependency ID for an arguments name. If an iterable is specified,
+            the position of the arguments is used to determine their
+            respective dependency. An argument may be skipped by using
+            :code:`None` as as placeholder. Type hints are overridden. Defaults
             to :code:`None`.
         use_names: Whether or not the arguments' name should be used as
             dependency ids. An iterable of argument names may also be
@@ -50,14 +67,21 @@ def inject(func: Callable = None,
         if isinstance(wrapped, InjectedCallableWrapper):
             return wrapped
 
+        blueprint = _build_injection_blueprint(
+            func=wrapped,
+            arg_map=arg_map,
+            use_names=use_names,
+            use_type_hints=use_type_hints
+        )
+
+        # If nothing can be injected, just return the existing function without
+        # any overhead.
+        if all(injection.dependency_id is None for injection in blueprint.injections):
+            return wrapped
+
         wrapper = InjectedCallableWrapper(
             container=container or get_global_container(),
-            blueprint=_build_injection_blueprint(
-                func=wrapped,
-                arg_map=arg_map,
-                use_names=use_names,
-                use_type_hints=use_type_hints
-            ),
+            blueprint=blueprint,
             wrapped=wrapped
         )
         return wraps(wrapped, updated=[])(wrapper)
@@ -66,7 +90,7 @@ def inject(func: Callable = None,
 
 
 def _build_injection_blueprint(func: Callable,
-                               arg_map: Union[Mapping, Iterable] = None,
+                               arg_map: ARG_MAP_TYPE = None,
                                use_names: Union[bool, Iterable[str]] = None,
                                use_type_hints: Union[bool, Iterable[str]] = None,
                                ) -> InjectionBlueprint:
@@ -103,10 +127,16 @@ def _build_injection_blueprint(func: Callable,
 
 
 def _build_arg_to_dependency(arguments: Arguments,
-                             arg_map: Union[Mapping, Iterable] = None
+                             arg_map: ARG_MAP_TYPE = None
                              ) -> Dict[str, Any]:
     if arg_map is None:
         arg_to_dependency = {}  # type: Mapping
+    elif isinstance(arg_map, str):
+        arg_to_dependency = {arg.name: arg_map.format(name=arg.name)
+                             for arg in arguments}
+    elif callable(arg_map):
+        arg_to_dependency = {arg.name: arg_map(arg.name)
+                             for arg in arguments}
     elif isinstance(arg_map, c_abc.Mapping):
         arg_to_dependency = arg_map
     elif isinstance(arg_map, c_abc.Iterable):
@@ -149,7 +179,8 @@ def _build_type_hints(func: Callable,
     return {
         arg_name: type_hint
         for arg_name, type_hint in type_hints.items()
-        if getattr(type_hint, '__module__', '') not in {'typing', 'builtins'}
+        if getattr(type_hint, '__module__', '') != 'typing'
+           and type_hint not in _BUILTINS_TYPES  # noqa
     }
 
 

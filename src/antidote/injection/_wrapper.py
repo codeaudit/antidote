@@ -1,18 +1,15 @@
-from typing import Callable
+from typing import Callable, Sequence
 
 from .._internal.utils import SlotReprMixin
 from ..container import DependencyContainer
 from ..exceptions import DependencyNotFoundError
 
 
-class InjectionBlueprint(SlotReprMixin):
-    __slots__ = ('injections',)
-
-    def __init__(self, injections):
-        self.injections = injections
-
-
 class Injection(SlotReprMixin):
+    """
+    Maps an argument name to its dependency ID and if the injection is required,
+    which is equivalent to no default argument.
+    """
     __slots__ = ('arg_name', 'required', 'dependency_id')
 
     def __init__(self, arg_name, required, dependency_id):
@@ -21,14 +18,30 @@ class Injection(SlotReprMixin):
         self.dependency_id = dependency_id
 
 
+class InjectionBlueprint(SlotReprMixin):
+    """
+    Stores all the injections for a function.
+    """
+    __slots__ = ('injections',)
+
+    def __init__(self, injections: Sequence[Injection]):
+        self.injections = injections
+
+
 class InjectedCallableWrapper:
+    """
+    Wrapper which injects all the dependencies not supplied in the passed
+    arguments. An InjectionBlueprint is used to store the mapping of the
+    arguments to their dependency if any and if the injection is required.
+    """
+
     def __init__(self,
                  container: DependencyContainer,
                  blueprint: InjectionBlueprint,
                  wrapped: Callable,
                  skip_self: bool = False):
+        self.__wrapped__ = wrapped
         self.__container = container
-        self.__wrapped = wrapped
         self.__blueprint = blueprint
         self.__injection_offset = 1 if skip_self else 0
 
@@ -39,16 +52,20 @@ class InjectedCallableWrapper:
             self.__injection_offset + len(args),
             kwargs
         )
-        return self.__wrapped(*args, **kwargs)
+        return self.__wrapped__(*args, **kwargs)
 
     def __get__(self, instance, owner):
         skip_self = instance is not None
-        func = self.__wrapped.__get__(instance, owner)
+        func = self.__wrapped__.__get__(instance, owner)
         return InjectedBoundCallableWrapper(self.__container, self.__blueprint,
                                             func, skip_self=skip_self)
 
 
 class InjectedBoundCallableWrapper(InjectedCallableWrapper):
+    """
+    Wrapper necessary to correctly handle methods.
+    """
+
     def __get__(self, instance, owner):
         return self
 
@@ -57,6 +74,9 @@ def _inject_kwargs(container: DependencyContainer,
                    blueprint: InjectionBlueprint,
                    offset: int,
                    kwargs: dict) -> dict:
+    """
+    Does the actual injection of the dependencies. Used by InjectedCallableWrapper.
+    """
     dirty_kwargs = False
     for injection in blueprint.injections[offset:]:
         if injection.dependency_id is not None and injection.arg_name not in kwargs:

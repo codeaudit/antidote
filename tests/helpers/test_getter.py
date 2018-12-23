@@ -3,14 +3,14 @@ import textwrap
 
 import pytest
 
-from antidote import (DependencyContainer, GetterProvider)
-from antidote.helpers import getter
+from antidote import (DependencyContainer, ResourceProvider)
+from antidote.helpers import resource
 
 
 @pytest.fixture()
 def container():
     c = DependencyContainer()
-    c.register_provider(GetterProvider())
+    c.register_provider(ResourceProvider())
 
     return c
 
@@ -45,13 +45,13 @@ def mk_getter(request):
 
 
 def test_namespace(mk_getter, container):
-    getter_ = functools.partial(getter, container=container)
+    getter_ = functools.partial(resource, container=container)
 
     data = {
         'test': object(),
         'test3': object(),
         'http:test': object(),
-        'conf3test': object()
+        'conf3:test': object()
     }
     mk_getter = functools.partial(mk_getter, data=data)
 
@@ -61,8 +61,8 @@ def test_namespace(mk_getter, container):
     getter_(omit_namespace=False)(mk_getter('http'))
     assert data['http:test'] == container['http:test']
 
-    getter_(namespace='conf2:', omit_namespace=True)(mk_getter('conf'))
+    getter_(namespace='conf2', omit_namespace=True)(mk_getter('conf'))
     assert data['test3'] == container['conf2:test3']
 
     getter_(namespace='conf3', omit_namespace=False)(mk_getter('conf'))
-    assert data['conf3test'] == container['conf3test']
+    assert data['conf3:test'] == container['conf3:test']

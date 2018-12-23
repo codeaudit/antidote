@@ -10,7 +10,8 @@ from cpython.set cimport PySet_Contains
 from ..exceptions import DependencyCycleError
 # @formatter:on
 
-# Final class as its behavior can only be changed through a Cython class.
+# Final class as its behavior can only be changed through a Cython class. The
+# DependencyContainer calls directly push() and pop()
 @cython.final
 cdef class InstantiationStack:
     def __init__(self):

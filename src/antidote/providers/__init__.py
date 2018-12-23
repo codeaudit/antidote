@@ -1,3 +1,3 @@
 from .factory import FactoryProvider
-from .getters import GetterProvider
-from .tags import TagProvider, Tag
+from .resource import ResourceProvider
+from .tag import TagProvider, Tag
