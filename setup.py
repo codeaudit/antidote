@@ -46,7 +46,7 @@ try:
 except ImportError:
     pass
 else:
-    ext_modules = cythonize(generate_extensions())
+    ext_modules = cythonize(generate_extensions(), annotate=True)
 
 setup(
     name='antidote',
@@ -71,7 +71,8 @@ setup(
         "tests": [
             "pytest",
             "pytest-cov",
-            "hypothesis"
+            "hypothesis",
+            "pretend"
         ]
     },
     license='MIT',

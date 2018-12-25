@@ -1,6 +1,7 @@
 import pytest
 
-from antidote import DependencyNotProvidableError, Instance, Provider
+from antidote import (DependencyNotProvidableError, DependencyInstance,
+                      DependencyProvider)
 from antidote.helpers import new_container, provider
 from antidote.providers import FactoryProvider, ResourceProvider
 from antidote.providers.tag import TagProvider
@@ -15,10 +16,10 @@ def test_simple(container):
     container['service'] = object()
 
     @provider(container=container)
-    class DummyProvider(Provider):
+    class DummyProvider(DependencyProvider):
         def provide(self, dependency):
-            if dependency.id == 'test':
-                return Instance(dependency.id)
+            if dependency == 'test':
+                return DependencyInstance(dependency)
             else:
                 raise DependencyNotProvidableError(dependency)
 
@@ -37,12 +38,12 @@ def test_invalid_provider(container):
 
     with pytest.raises(TypeError):
         @provider(auto_wire=False, container=container)
-        class MissingDependencyProvider(Provider):
+        class MissingDependencyProvider(DependencyProvider):
             def __init__(self, service):
                 self.service = service
 
             def provide(self, dependency):
-                return Instance(dependency.id)
+                return DependencyInstance(dependency)
 
 
 def test_providers(container):
@@ -52,8 +53,8 @@ def test_providers(container):
     assert TagProvider in container.providers
 
     @provider(container=container)
-    class DummyProvider(Provider):
+    class DummyProvider(DependencyProvider):
         def provide(self, dependency):
-            return Instance(1)
+            return DependencyInstance(1)
 
     assert DummyProvider in container.providers

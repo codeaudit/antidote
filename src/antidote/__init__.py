@@ -1,6 +1,6 @@
 import pkg_resources as _pkg_resources
 
-from .container import Dependency, DependencyContainer, Instance, Provider
+from .core import DependencyContainer, DependencyInstance, DependencyProvider
 from .exceptions import (AntidoteError, DependencyCycleError,
                          DependencyInstantiationError, DependencyNotFoundError,
                          DependencyNotProvidableError, DuplicateDependencyError)
@@ -20,7 +20,7 @@ except _pkg_resources.DistributionNotFound:  # pragma: no cover
 __all__ = [
     'Build',
     'inject',
-    'Instance',
+    'DependencyInstance',
     'DependencyContainer',
     'AntidoteError',
     'DependencyNotProvidableError',

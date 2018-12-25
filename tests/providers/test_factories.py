@@ -1,9 +1,7 @@
 import pytest
 
-from antidote import (
-    DuplicateDependencyError, DependencyNotProvidableError, Dependency
-)
-from antidote.providers.factory import (FactoryProvider, Build)
+from antidote import DuplicateDependencyError
+from antidote.providers.factory import (Build, FactoryProvider)
 
 
 class Service:
@@ -25,16 +23,16 @@ def provider():
 def test_register(provider: FactoryProvider):
     provider.register(Service, Service)
 
-    dependency = provider.provide(Dependency(Service))
-    assert isinstance(dependency.item, Service)
+    dependency = provider.provide(Service)
+    assert isinstance(dependency.instance, Service)
     assert repr(Service) in repr(provider)
 
 
 def test_register_factory_id(provider: FactoryProvider):
     provider.register(Service, lambda: Service())
 
-    dependency = provider.provide(Dependency(Service))
-    assert isinstance(dependency.item, Service)
+    dependency = provider.provide(Service)
+    assert isinstance(dependency.instance, Service)
 
 
 def test_singleton(provider: FactoryProvider):
@@ -42,25 +40,25 @@ def test_singleton(provider: FactoryProvider):
     provider.register(AnotherService, AnotherService, singleton=False)
 
     provide = provider.provide
-    assert provide(Dependency(Service)).singleton is True
-    assert provide(Dependency(AnotherService)).singleton is False
+    assert provide(Service).singleton is True
+    assert provide(AnotherService).singleton is False
 
 
-def test_takes_dependency_id(provider: FactoryProvider):
-    provider.register(Service, lambda cls: cls(), takes_dependency_id=True)
+def test_takes_dependency(provider: FactoryProvider):
+    provider.register(Service, lambda cls: cls(), takes_dependency=True)
 
     assert isinstance(
-        provider.provide(Dependency(Service)).item,
+        provider.provide(Service).instance,
         Service
     )
 
-    assert provider.provide(Dependency(AnotherService)) is None
+    assert provider.provide(AnotherService) is None
 
 
 def test_build_dependency(provider: FactoryProvider):
     provider.register(Service, Service)
 
-    s = provider.provide(Build(Service, 1, val=object)).item
+    s = provider.provide(Build(Service, 1, val=object)).instance
     assert isinstance(s, Service)
     assert (1,) == s.args
     assert dict(val=object) == s.kwargs

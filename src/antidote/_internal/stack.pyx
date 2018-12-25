@@ -1,6 +1,5 @@
 # cython: language_level=3, language=c++
 # cython: boundscheck=False, wraparound=False
-# cython: linetrace=True
 from contextlib import contextmanager
 
 # @formatter:off
@@ -13,24 +12,24 @@ from ..exceptions import DependencyCycleError
 # Final class as its behavior can only be changed through a Cython class. The
 # DependencyContainer calls directly push() and pop()
 @cython.final
-cdef class InstantiationStack:
+cdef class DependencyStack:
     def __init__(self):
         self._stack = list()
         self._seen = set()
 
     @contextmanager
-    def instantiating(self, dependency_id):
-        if 1 != self.push(dependency_id):
-            raise DependencyCycleError(self._stack.copy() + [dependency_id])
+    def instantiating(self, dependency):
+        if 1 != self.push(dependency):
+            raise DependencyCycleError(self._stack.copy() + [dependency])
         try:
             yield
         finally:
             self.pop()
 
-    cdef bint push(self, object dependency_id):
+    cdef bint push(self, object dependency):
         """
         Args:
-            dependency_id: supposed to be hashable as the container tries to 
+            dependency: supposed to be hashable as the core tries to 
                 retrieves from a dictionary first. 
 
         Returns:
@@ -41,11 +40,11 @@ cdef class InstantiationStack:
             list stack
             bint seen
 
-        if 1 == PySet_Contains(self._seen, dependency_id):
+        if 1 == PySet_Contains(self._seen, dependency):
             return 0
 
-        self._stack.append(dependency_id)
-        self._seen.add(dependency_id)
+        self._stack.append(dependency)
+        self._seen.add(dependency)
         return 1
 
     cdef pop(self):

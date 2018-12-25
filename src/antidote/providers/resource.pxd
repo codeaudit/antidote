@@ -1,11 +1,9 @@
 # cython: language_level=3, language=c++
 # cython: boundscheck=False, wraparound=False
-# cython: linetrace=True
-# noinspection PyUnresolvedReferences
-from ..container cimport Dependency, Instance, Provider
+from antidote.core.container cimport DependencyInstance, DependencyProvider
 
-cdef class ResourceProvider(Provider):
+cdef class ResourceProvider(DependencyProvider):
     cdef:
         public dict _priority_sorted_getters_by_namespace
 
-    cpdef Instance provide(self, Dependency dependency)
+    cpdef DependencyInstance provide(self, object dependency)

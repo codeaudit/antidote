@@ -1,8 +1,7 @@
-from ..._internal.utils import SlotReprMixin
-from ...container import Dependency
+from ..._internal.utils import SlotsReprMixin
 
 
-class Tag(SlotReprMixin):
+class Tag(SlotsReprMixin):
     """
     Tags are a way to expose a dependency indirectly. Instead of explicitly
     defining a list of dependencies to retrieve, one can just mark those with
@@ -36,22 +35,21 @@ class Tag(SlotReprMixin):
         return self._attrs.get(item)
 
 
-class Tagged(Dependency):
+class Tagged(SlotsReprMixin):
     """
     Custom dependency used to retrieve all dependencies tagged with by with the
     name.
     """
+    __slots__ = ('name',)
 
     def __init__(self, name: str):
         """
         Args:
             name: Name of the tags which shall be retrieved.
         """
-        super().__init__(name)
+        self.name = name
 
-    @property
-    def name(self) -> str:
-        return self.id
+    __str__ = SlotsReprMixin.__repr__
 
     def __hash__(self):
         return object.__hash__(self)

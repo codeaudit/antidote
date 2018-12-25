@@ -1,8 +1,10 @@
 import pytest
+from pretend import stub
 
-from antidote.container import DependencyContainer, Instance
-from antidote.exceptions import DuplicateTagError
+from antidote.core import DependencyContainer, DependencyInstance
+from antidote.exceptions import DependencyNotFoundError, DuplicateTagError
 from antidote.providers.tag import Tag, TagProvider, Tagged, TaggedDependencies
+from antidote.providers.tag.provider import TaggedDependency
 
 
 def test_repr():
@@ -46,41 +48,66 @@ def test_provide_tags():
     provider.register('test2', ['tag2'])
 
     result = provider.provide(Tagged('xxxxx'))
-    assert isinstance(result, Instance)
+    assert isinstance(result, DependencyInstance)
     assert result.singleton is False
-    assert 0 == len(result.item)
+    assert 0 == len(result.instance)
 
     result = provider.provide(Tagged('tag1'))
-    assert isinstance(result, Instance)
+    assert isinstance(result, DependencyInstance)
     assert result.singleton is False
-    assert 1 == len(result.item)
 
-    result = dict(result.item.items())
-    assert 'tag1' == result[container['test']].name
+    tagged_dependencies = result.instance  # type: TaggedDependencies
+    assert 1 == len(tagged_dependencies)
+    assert ['test'] == list(tagged_dependencies.dependencies())
+    assert ['tag1'] == [tag.name for tag in tagged_dependencies.tags()]
+    assert [container['test']] == list(tagged_dependencies.instances())
 
     result = provider.provide(Tagged('tag2'))
-    assert isinstance(result, Instance)
+    assert isinstance(result, DependencyInstance)
     assert result.singleton is False
-    assert 2 == len(result.item)
 
-    result = dict(result.item.items())
-    assert 'tag2' == result[container['test2']].name
-    assert 'tag2' == result[container['test']].name
-    assert result[container['test']].error
+    tagged_dependencies = result.instance  # type: TaggedDependencies
+    assert 2 == len(tagged_dependencies)
+    assert ['test', 'test2'] == list(tagged_dependencies.dependencies())
+    tags = list(tagged_dependencies.tags())
+    assert ['tag2', 'tag2'] == [tag.name for tag in tags]
+    assert tags[0].error
+    instances = [container['test'], container['test2']]
+    assert instances == list(tagged_dependencies.instances())
 
 
 def test_tagged_dependencies():
     tag1 = Tag('tag1')
     tag2 = Tag('tag2', dummy=True)
     t = TaggedDependencies(
-        getter_tag_pairs=[
-            (lambda: 'test', tag1),
-            (lambda: 'test2', tag2)
+        container=stub(provide=lambda d: {'d': 'test', 'd2': 'test2'}[d],
+                       SENTINEL=object()),
+        tagged_dependencies=[
+            TaggedDependency(dependency='d',
+                             tag=tag1),
+            TaggedDependency(dependency='d2',
+                             tag=tag2),
         ]
     )
 
     assert {tag1, tag2} == set(t.tags())
-    assert {'test', 'test2'} == set(t.dependencies())
-    assert {'test', 'test2'} == set(t)
-    assert {('test', tag1), ('test2', tag2)} == set(t.items())
+    assert {'test', 'test2'} == set(t.instances())
+    assert {'d', 'd2'} == set(t.dependencies())
     assert 2 == len(t)
+
+
+def test_tagged_dependencies_invalid_dependency():
+    sentinel = object()
+    tag = Tag('tag1')
+    t = TaggedDependencies(
+        container=stub(provide=lambda _: sentinel,
+                       SENTINEL=sentinel),
+        tagged_dependencies=[
+            TaggedDependency(dependency='d',
+                             tag=tag),
+        ]
+    )
+    assert ['d'] == list(t.dependencies())
+    assert [tag] == list(t.tags())
+    with pytest.raises(DependencyNotFoundError):
+        list(t.instances())

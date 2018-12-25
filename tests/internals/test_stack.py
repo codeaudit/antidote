@@ -1,6 +1,6 @@
 import pytest
 
-from antidote.container._stack import InstantiationStack
+from antidote._internal.stack import DependencyStack
 from antidote.exceptions import DependencyCycleError
 
 
@@ -13,23 +13,23 @@ class CustomException(Exception):
 
 
 def test_instantiating():
-    ds = InstantiationStack()
+    ds = DependencyStack()
 
-    with ds.instantiating(InstantiationStack):
+    with ds.instantiating(DependencyStack):
         with ds.instantiating('test'):
             pass
 
     with pytest.raises(DependencyCycleError):
-        with ds.instantiating(InstantiationStack):
-            with ds.instantiating(InstantiationStack):
+        with ds.instantiating(DependencyStack):
+            with ds.instantiating(DependencyStack):
                 pass
 
     try:
-        with ds.instantiating(InstantiationStack):
+        with ds.instantiating(DependencyStack):
             raise CustomException()
     except CustomException:
         pass
 
-    # InstantiationStack should be clean
-    with ds.instantiating(InstantiationStack):
+    # DependencyStack should be clean
+    with ds.instantiating(DependencyStack):
         pass

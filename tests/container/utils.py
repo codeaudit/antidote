@@ -1,36 +1,30 @@
-from antidote import Instance, Provider
+from antidote.core import DependencyInstance, DependencyProvider
 
 
-class DummyProvider(Provider):
+class DummyProvider(DependencyProvider):
+    singleton = True
+
+    def __init__(self, data=None):
+        self.data = data
+
+    def provide(self, dependency):
+        try:
+            return DependencyInstance(self.data[dependency],
+                                      singleton=self.singleton)
+        except KeyError:
+            pass
+
+
+class DummyFactoryProvider(DependencyProvider):
     singleton = True
 
     def __init__(self, data=None):
         self.data = data or dict()
 
-    def __setitem__(self, key, value):
-        self.data[key] = value
-
-    def provide(self, dependency_id):
+    def provide(self, dependency):
         try:
-            return Instance(self.data[dependency_id],
-                            singleton=self.singleton)
-        except KeyError:
-            pass
-
-
-class DummyFactoryProvider(Provider):
-    create_singleton = True
-
-    def __init__(self, data=None):
-        self.data = data or dict()
-
-    def __setitem__(self, key, value):
-        self.data[key] = value
-
-    def provide(self, dependency_id):
-        try:
-            return Instance(self.data[dependency_id](),
-                            singleton=self.create_singleton)
+            return DependencyInstance(self.data[dependency](),
+                                      singleton=self.singleton)
         except KeyError:
             pass
 

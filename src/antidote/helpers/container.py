@@ -2,7 +2,7 @@ import contextlib
 from typing import Iterable, Mapping
 
 from .._internal.global_container import get_global_container, set_global_container
-from ..container import DependencyContainer, ProxyContainer
+from ..core import DependencyContainer, ProxyContainer
 from ..providers import FactoryProvider, ResourceProvider, TagProvider
 
 

@@ -7,7 +7,7 @@ class AntidoteError(Exception):
 
 
 class UndefinedContainerError(AntidoteError):
-    """ Raised whenever injection is tried without container """
+    """ Raised whenever injection is tried without core """
 
 
 class DuplicateDependencyError(AntidoteError):
@@ -20,14 +20,14 @@ class DuplicateDependencyError(AntidoteError):
 class DependencyInstantiationError(AntidoteError):
     """
     The dependency could not be instantiated.
-    Raised by the container.
+    Raised by the core.
     """
 
 
 class DependencyCycleError(AntidoteError):
     """
     A dependency cycle is found.
-    Raised by the container.
+    Raised by the core.
     """
 
     def __init__(self, stack: List):
@@ -56,8 +56,8 @@ class DependencyNotProvidableError(AntidoteError):
 
 class DependencyNotFoundError(AntidoteError):
     """
-    The dependency could not be found in the container.
-    Raised by the container.
+    The dependency could not be found in the core.
+    Raised by the core.
     """
 
 

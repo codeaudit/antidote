@@ -2,7 +2,7 @@ import inspect
 from typing import Callable, Iterable, Union
 
 from .inject import ARG_MAP_TYPE, inject
-from ..container import DependencyContainer
+from ..core import DependencyContainer
 
 
 def wire(class_: type = None,
@@ -19,24 +19,23 @@ def wire(class_: type = None,
         class_: class to wire.
         methods: Name of the methods for which dependencies should be
             injected. Defaults to all defined methods.
-        arg_map: Can be either a mapping of arguments name to their dependency
-            id, an iterable of dependency ids or a function which returns the
-            dependency ID for an arguments name. If an iterable is specified,
-            the position of the arguments is used to determine their
-            respective dependency. An argument may be skipped by using
-            :code:`None` as as placeholder. Type hints are overridden. Defaults
-            to :code:`None`.
-        use_names: Whether or not the arguments' name should be used as
-            dependency ids. An iterable of argument names may also be
+        arg_map: Can be either a mapping of arguments name to their dependency,
+            an iterable of dependencies or a function which returns the
+            dependency given the arguments name. If an iterable is specified,
+            the position of the arguments is used to determine their respective
+            dependency. An argument may be skipped by using :code:`None` as a
+            placeholder. Type hints are overridden. Defaults to :code:`None`.
+        use_names: Whether or not the arguments' name should be used as their
+            respective dependency. An iterable of argument names may also be
             supplied to restrict this to those. Defaults to :code:`False`.
         use_type_hints: Whether or not the type hints (annotations) should be
-            used as dependency ids. An iterable of argument names may also be
-            supplied to restrict this to those. Any type hints from the
-            builtins (str, int...) or the typing (:py:class:`~typing.Optional`,
+            used as the arguments dependency. An iterable of argument names may
+            also be specified to restrict this to those. Any type hints from
+            the builtins (str, int...) or the typing (:py:class:`~typing.Optional`,
             ...) are ignored. Defaults to :code:`True`.
-        container: :py:class:~.container.base.DependencyContainer` from which
+        container: :py:class:~.core.base.DependencyContainer` from which
             the dependencies should be retrieved. Defaults to the global
-            container if it is defined.
+            core if it is defined.
 
     Returns:
         Wired class or a decorator.

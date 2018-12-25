@@ -1,44 +1,66 @@
+# cython: language_level=3, language=c++
+# cython: boundscheck=False, wraparound=False
 import threading
-from collections import deque
-from typing import (Any, Callable, Deque, Dict, Generic, Iterable, Iterator, List,
-                    Optional, TypeVar, Union)
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Union
 
-from .dependency import Tag, Tagged
-from ...core import DependencyContainer, DependencyInstance, DependencyProvider
-from ...exceptions import DuplicateTagError, DependencyNotFoundError
+from antidote.core.container cimport DependencyContainer, DependencyInstance, DependencyProvider
+from ..exceptions import DependencyNotFoundError, DuplicateTagError
 
-T = TypeVar('T')
+cdef class Tag:
+    def __init__(self, str name, **attrs):
+        self.name = name
+        self._attrs = attrs
 
+    def __repr__(self):
+        return "{}(name={!r}, **attrs={!r})".format(type(self).__name__,
+                                                    self.name,
+                                                    self._attrs)
 
-class TaggedDependency:
-    def __init__(self, dependency: Any, tag: Tag):
+    def __getattr__(self, item):
+        return self._attrs.get(item)
+
+cdef class Tagged:
+    def __init__(self, str name):
+        self.name = name
+
+    def __repr__(self):
+        return "{}(name={!r})".format(type(self).__name__, self.name)
+
+cdef class TaggedDependency:
+    cdef:
+        Tag tag
+        object dependency
+
+    def __init__(self, dependency: Any, Tag tag):
         self.dependency = dependency
         self.tag = tag
 
 
-class TaggedDependencies(Generic[T]):
+cdef class TaggedDependencies:
     """
     Collection containing dependencies and their tags. Dependencies are lazily
     instantiated. This is thread-safe.
 
     Used by :py:class:`~.TagProvider` to return the dependencies matching a tag.
     """
+    cdef:
+        DependencyContainer _container
+        list _dependencies
+        list _tags
+        object _lock
 
     def __init__(self,
-                 container: DependencyContainer,
-                 tagged_dependencies: Iterable[TaggedDependency]):
-        self._container = container
+                 DependencyContainer container,
+                 list dependencies,
+                 list tags):
         self._lock = threading.Lock()
-        self._dependencies = []  # type: List[Any]
-        self._tags = []  # type: List[Tag]
-        self._instances = []  # type: List[T]
-
-        for tagged_dependency in tagged_dependencies:
-            self._dependencies.append(tagged_dependency.dependency)
-            self._tags.append(tagged_dependency.tag)
+        self._container = container
+        self._dependencies = dependencies  # type: List[Any]
+        self._tags = tags  # type: List[Tag]
+        self._instances = []  # type: List[Any]
 
     def __len__(self):
-        return len(self._tags)
+        return len(self._dependencies)
 
     def dependencies(self) -> Iterable[Any]:
         """
@@ -53,11 +75,15 @@ class TaggedDependencies(Generic[T]):
         """
         return iter(self._tags)
 
-    def instances(self) -> Iterator[T]:
+    def instances(self) -> Iterator[Any]:
         """
         Returns the dependencies, in a stable order for multi-threaded
         environments.
         """
+        cdef:
+            int i
+            object instance
+
         i = -1
         for i, instance in enumerate(self._instances):
             yield instance
@@ -79,14 +105,17 @@ class TaggedDependencies(Generic[T]):
             i += 1
 
 
-class TagProvider(DependencyProvider):
+cdef class TagProvider(DependencyProvider):
     """
     Provider managing string tag. Tags allows one to retrieve a collection of
     dependencies marked by their creator.
     """
     bound_types = (Tagged,)
+    cdef:
+        DependencyContainer _container
+        dict _dependency_to_tag_by_tag_name
 
-    def __init__(self, container: DependencyContainer):
+    def __init__(self, DependencyContainer container):
         self._dependency_to_tag_by_tag_name = {}  # type: Dict[str, Dict[Any, Tag]]
         self._container = container
 
@@ -96,7 +125,7 @@ class TagProvider(DependencyProvider):
             self._dependency_to_tag_by_tag_name
         )
 
-    def provide(self, dependency) -> Optional[DependencyInstance]:
+    cpdef DependencyInstance provide(self, dependency):
         """
         Returns all dependencies matching the tag name specified with a
         :py:class:`~.dependency.Tagged`. For every other case, :obj:`None` is
@@ -110,17 +139,28 @@ class TagProvider(DependencyProvider):
             :py:class:`~.TaggedDependencies` wrapped in a
             :py:class:`~..core.Instance`.
         """
+        cdef:
+            dict dependency_to_tag
+            list dependencies
+            list tags
+            object dependency_
+            Tag tag
+            DependencyInstance dependency_instance
+
         if isinstance(dependency, Tagged):
             dependency_to_tag = self._dependency_to_tag_by_tag_name.get(dependency.name,
                                                                         {})
+            dependencies = []
+            tags = []
+            for dependency_, tag in dependency_to_tag.items():
+                dependencies.append(dependency_)
+                tags.append(tag)
+
             return DependencyInstance(
                 TaggedDependencies(
                     container=self._container,
-                    tagged_dependencies=(
-                        TaggedDependency(dependency=dependency_, tag=tag)
-                        for dependency_, tag
-                        in dependency_to_tag.items()
-                    )
+                    dependencies=dependencies,
+                    tags=tags
                 ),
                 # Whether the returned dependencies are singletons or not is
                 # their decision to take.

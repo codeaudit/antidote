@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from ..exceptions import DependencyCycleError
 
 
-class InstantiationStack:
+class DependencyStack:
     """
     Stores the stack of dependency instantiation to detect and prevent cycles
     by raising DependencyCycleError.
@@ -18,18 +18,18 @@ class InstantiationStack:
         self._seen = set()
 
     @contextmanager
-    def instantiating(self, dependency_id):
+    def instantiating(self, dependency):
         """
         Context Manager which has to be used when instantiating the
         dependency to keep track of the dependency path.
 
         When a cycle is detected, a DependencyCycleError is raised.
         """
-        if dependency_id in self._seen:
-            raise DependencyCycleError(self._stack + [dependency_id])
+        if dependency in self._seen:
+            raise DependencyCycleError(self._stack + [dependency])
 
-        self._stack.append(dependency_id)
-        self._seen.add(dependency_id)
+        self._stack.append(dependency)
+        self._seen.add(dependency)
         try:
             yield
         finally:

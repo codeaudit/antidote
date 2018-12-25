@@ -47,11 +47,11 @@ def test_container_instantiation_safety(container):
     n_threads = 10
 
     factory(make_delayed_factory(Service),
-            dependency_id=Service,
+            dependency=Service,
             singleton=True,
             container=container)
     factory(make_delayed_factory(AnotherService),
-            dependency_id=AnotherService,
+            dependency=AnotherService,
             singleton=False,
             container=container)
 
@@ -73,7 +73,7 @@ def test_tagged_dependencies_instantiation_safety(container):
 
     for i in range(n_dependencies):
         factory(make_delayed_factory(object),
-                dependency_id=i + 1,
+                dependency=i + 1,
                 singleton=False,
                 tags=['test'],
                 container=container)
@@ -82,10 +82,10 @@ def test_tagged_dependencies_instantiation_safety(container):
     dependencies = []
 
     def worker():
-        for i, dep in enumerate(tagged.dependencies()):
+        for i, dep in enumerate(tagged.instances()):
             dependencies.append((i, dep))
 
     multi_thread_do(worker)
 
     assert n_dependencies == len(set(dependencies))
-    assert set(dependencies) == set(enumerate(tagged.dependencies()))
+    assert set(dependencies) == set(enumerate(tagged.instances()))

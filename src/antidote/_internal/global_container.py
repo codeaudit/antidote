@@ -1,6 +1,6 @@
 from typing import Optional
 
-from ..container import DependencyContainer
+from ..core import DependencyContainer
 
 
 def get_global_container() -> DependencyContainer:

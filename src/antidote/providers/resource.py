@@ -2,17 +2,16 @@ import bisect
 import re
 from typing import Any, Callable, Dict, List, Optional
 
-from .._internal.utils import SlotReprMixin
-from ..container import Dependency, Instance, Provider
+from .._internal.utils import SlotsReprMixin
+from ..core import DependencyInstance, DependencyProvider
 from ..exceptions import GetterPriorityConflict
 
 
-class ResourceProvider(Provider):
+class ResourceProvider(DependencyProvider):
     """
-    Provider managing string dependency ID, usually constant parameters such as
-    configuration.
+    Provider managing resources, such as configuration, remote static content,
+    etc...
     """
-
     def __init__(self):
         self._priority_sorted_getters_by_namespace = dict()  # type: Dict[str, List[ResourceGetter]]  # noqa
 
@@ -20,7 +19,7 @@ class ResourceProvider(Provider):
         return "{}(getters={!r})".format(type(self).__name__,
                                          self._priority_sorted_getters_by_namespace)
 
-    def provide(self, dependency: Dependency) -> Optional[Instance]:
+    def provide(self, dependency) -> Optional[DependencyInstance]:
         """
 
         Args:
@@ -29,17 +28,20 @@ class ResourceProvider(Provider):
         Returns:
 
         """
-        if isinstance(dependency.id, str) and ':' in dependency.id:
-            namespace, resource_name = dependency.id.split(':', 1)
+        if isinstance(dependency, str) and ':' in dependency:
+            namespace, resource_name = dependency.split(':', 1)
             getters = self._priority_sorted_getters_by_namespace.get(namespace)
             if getters is not None:
                 for getter in getters:
                     try:
-                        resource = getter.get(resource_name)
+                        if getter.omit_namespace:
+                            instance = getter.func(resource_name)
+                        else:
+                            instance = getter.func(dependency)
                     except LookupError:
                         pass
                     else:
-                        return Instance(resource, singleton=getter.singleton)
+                        return DependencyInstance(instance, singleton=getter.singleton)
 
         return None
 
@@ -65,10 +67,10 @@ class ResourceProvider(Provider):
                 when they share the same namespace. Highest priority wins.
                 Defaults to 0.
             omit_namespace: Whether or not the namespace should be kept when
-                passing the dependency ID to the :code:`resource_getter`.
+                passing the dependency to the :code:`resource_getter`.
                 Defaults to True.
             singleton: Whether the dependency should be mark as singleton or
-                not for the :py:class:`~..container.DependencyContainer`.
+                not for the :py:class:`~..core.DependencyContainer`.
 
         """
         if not isinstance(namespace, str):
@@ -91,7 +93,7 @@ class ResourceProvider(Provider):
 
         # Highest priority should be first
         idx = bisect.bisect([-g.priority for g in getters], -priority)
-        getters.insert(idx, ResourceGetter(getter=resource_getter,
+        getters.insert(idx, ResourceGetter(func=resource_getter,
                                            namespace=namespace,
                                            priority=priority,
                                            omit_namespace=omit_namespace,
@@ -100,29 +102,24 @@ class ResourceProvider(Provider):
         self._priority_sorted_getters_by_namespace[namespace] = getters
 
 
-class ResourceGetter(SlotReprMixin):
+class ResourceGetter(SlotsReprMixin):
     """
     Not part of the public API.
 
     Only used by the GetterProvider to store information on how a getter has to
     be used.
     """
-    __slots__ = ('_getter', '_omit_namespace', 'namespace_', 'priority',
+    __slots__ = ('func', 'omit_namespace', 'namespace_', 'priority',
                  'singleton')
 
     def __init__(self,
-                 getter: Callable[[str], Any],
+                 func: Callable[[str], Any],
                  namespace: str,
                  priority: float,
                  omit_namespace: bool,
                  singleton: bool):
-        self._getter = getter
-        self._omit_namespace = omit_namespace
+        self.func = func
+        self.omit_namespace = omit_namespace
         self.namespace_ = namespace
         self.singleton = singleton
         self.priority = priority
-
-    def get(self, resource_name: str):
-        if self._omit_namespace:
-            return self._getter(resource_name)
-        return self._getter(self.namespace_ + ':' + resource_name)

@@ -1,16 +1,15 @@
 # cython: language_level=3, language=c++
 # cython: boundscheck=False, wraparound=False
-# cython: linetrace=True
-# noinspection PyUnresolvedReferences
-from ..container cimport Dependency, Instance, Provider
+from antidote.core.container cimport DependencyInstance, DependencyProvider
 
-cdef class FactoryProvider(Provider):
+cdef class FactoryProvider(DependencyProvider):
     cdef:
         dict _factories
 
-    cpdef Instance provide(self, Dependency dependency)
+    cpdef DependencyInstance provide(self, object dependency)
 
-cdef class Build(Dependency):
+cdef class Build:
     cdef:
-        public tuple args
-        public dict kwargs
+        readonly object wrapped
+        readonly tuple args
+        readonly dict kwargs

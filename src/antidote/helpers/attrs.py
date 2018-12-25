@@ -1,22 +1,21 @@
 from typing import Any, get_type_hints
 
-from ..container import DependencyContainer
+from ..core import DependencyContainer
 from .._internal.global_container import get_global_container
 
 
-def attrib(dependency_id: Any = None,
+def attrib(dependency: Any = None,
            use_name: bool = None,
            container: DependencyContainer = None,
            **attr_kwargs):
     """Injects a dependency with attributes defined with attrs package.
 
     Args:
-        dependency_id: Id of the dependency to inject. Defaults to the
-            annotation.
-        use_name: If True, use the attribute name as the dependency id
+        dependency: Dependency to inject. Defaults to the type hint.
+        use_name: If True, use the attribute name as the dependency,
             overriding any annotations.
-        container: :py:class:~.container.base.DependencyContainer` to which the
-            dependency should be attached. Defaults to the global container if
+        container: :py:class:~.core.base.DependencyContainer` to which the
+            dependency should be attached. Defaults to the global core if
             it is defined.
         **attr_kwargs: Keyword arguments passed on to attr.ib()
 
@@ -32,9 +31,9 @@ def attrib(dependency_id: Any = None,
         raise RuntimeError("attrs package must be installed.")
 
     def factory(instance):
-        nonlocal dependency_id
+        nonlocal dependency
 
-        if dependency_id is None:
+        if dependency is None:
             cls = instance.__class__
             type_hints = get_type_hints(cls) or {}
 
@@ -44,20 +43,20 @@ def attrib(dependency_id: Any = None,
                 if isinstance(attribute.default, attr.Factory) \
                         and attribute.default.factory is factory:
                     try:
-                        dependency_id = type_hints[attribute.name]
+                        dependency = type_hints[attribute.name]
                     except KeyError:
                         if use_name:
-                            dependency_id = attribute.name
+                            dependency = attribute.name
                             break
                     else:
                         break
             else:
                 raise ValueError(
                     "No dependency could be detected. Please specify "
-                    "the parameter `dependency_id` or `use_name=True`."
+                    "the parameter `dependency` or `use_name=True`."
                     "Annotations may also be used."
                 )
 
-        return container[dependency_id]
+        return container[dependency]
 
     return attr.ib(default=attr.Factory(factory, takes_self=True), **attr_kwargs)

@@ -30,7 +30,7 @@ class SuperService:
 
 
 def test_function(container):
-    @factory(dependency_id=Service, container=container)
+    @factory(dependency=Service, container=container)
     def build():
         return Service()
 
@@ -40,7 +40,7 @@ def test_function(container):
 
 
 def test_class(container):
-    @factory(container=container, dependency_id=Service)
+    @factory(container=container, dependency=Service)
     class ServiceFactory:
         def __call__(self):
             return Service()
@@ -71,8 +71,8 @@ def test_class_return_type_hint(container):
     assert container[AnotherService] is container[AnotherService]
 
 
-def test_missing_dependency_id(container):
-    with pytest.raises(ValueError):  # No dependency ID
+def test_missing_dependency(container):
+    with pytest.raises(ValueError):  # No dependency
         @factory(container=container)
         def faulty_service_provider():
             return Service()
@@ -86,7 +86,7 @@ def test_missing_dependency_id(container):
 
 def test_missing_call(container):
     with pytest.raises(ValueError):
-        @factory(dependency_id=Service, container=container)
+        @factory(dependency=Service, container=container)
         class FaultyServiceFactory2:
             pass
 

@@ -54,13 +54,13 @@ def parametrize_registration(tests, **kwargs):
             wrapped = wrapper(container=container, **kwargs)(wrapped)
 
             if wrapper == register:
-                dependency_id = wrapped
+                dependency = wrapped
             elif wrapper == resource:
-                dependency_id = 'conf:test'
+                dependency = 'conf:test'
             else:
-                dependency_id = Service
+                dependency = Service
 
-            return test(container, dependency_id=dependency_id)
+            return test(container, dependency=dependency)
 
         return f
 
@@ -68,31 +68,31 @@ def parametrize_registration(tests, **kwargs):
 
 
 @parametrize_registration(tag_tests, tags=[Tag('test')])
-def test_single_tag(container, dependency_id):
-    tagged = list(container[Tagged('test')])
+def test_single_tag(container, dependency):
+    tagged = list(container[Tagged('test')].instances())
 
     assert 1 == len(tagged)
-    assert container[dependency_id] is tagged[0]
+    assert container[dependency] is tagged[0]
 
 
 @parametrize_registration(tag_tests, tags=[Tag('test'), Tag('test2')])
-def test_multi_tags(container, dependency_id):
-    tagged = list(container[Tagged('test')])
+def test_multi_tags(container, dependency):
+    tagged = list(container[Tagged('test')].instances())
 
     assert 1 == len(tagged)
-    assert container[dependency_id] is tagged[0]
+    assert container[dependency] is tagged[0]
 
-    tagged = list(container[Tagged('test2')])
+    tagged = list(container[Tagged('test2')].instances())
 
     assert 1 == len(tagged)
-    assert container[dependency_id] is tagged[0]
+    assert container[dependency] is tagged[0]
 
 
 @parametrize_registration(singleton_tests, singleton=True)
-def test_singleton(container, dependency_id):
-    assert container[dependency_id] is container[dependency_id]
+def test_singleton(container, dependency):
+    assert container[dependency] is container[dependency]
 
 
 @parametrize_registration(singleton_tests, singleton=False)
-def test_not_singleton(container, dependency_id):
-    assert container[dependency_id] is not container[dependency_id]
+def test_not_singleton(container, dependency):
+    assert container[dependency] is not container[dependency]

@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, Iterable, Mapping, Set, Union
 from ._wrapper import InjectedCallableWrapper, Injection, InjectionBlueprint
 from .._internal.argspec import Arguments, get_arguments_specification
 from .._internal.global_container import get_global_container
-from ..container import DependencyContainer
+from ..core import DependencyContainer
 
 _BUILTINS_TYPES = {e for e in builtins.__dict__.values() if isinstance(e, type)}
 ARG_MAP_TYPE = Union[
@@ -26,34 +26,33 @@ def inject(func: Callable = None,
            container: DependencyContainer = None
            ) -> Callable:
     """
-    Inject the dependency into the function lazily, they are only retrieved
+    Inject the dependencies into the function lazily, they are only retrieved
     upon execution. Can be used as a decorator.
 
-    Dependency IDs must NOT be:
+    Dependency CAN NOT be:
     - part of the builtins
     - part of typing
     - None
 
     Args:
         func: Callable to be wrapped.
-        arg_map: Can be either a mapping of arguments name to their dependency
-            id, an iterable of dependency ids or a function which returns the
-            dependency ID for an arguments name. If an iterable is specified,
-            the position of the arguments is used to determine their
-            respective dependency. An argument may be skipped by using
-            :code:`None` as as placeholder. Type hints are overridden. Defaults
-            to :code:`None`.
-        use_names: Whether or not the arguments' name should be used as
-            dependency ids. An iterable of argument names may also be
+        arg_map: Can be either a mapping of arguments name to their dependency,
+            an iterable of dependencies or a function which returns the
+            dependency given the arguments name. If an iterable is specified,
+            the position of the arguments is used to determine their respective
+            dependency. An argument may be skipped by using :code:`None` as a
+            placeholder. Type hints are overridden. Defaults to :code:`None`.
+        use_names: Whether or not the arguments' name should be used as their
+            respective dependency. An iterable of argument names may also be
             supplied to restrict this to those. Defaults to :code:`False`.
         use_type_hints: Whether or not the type hints (annotations) should be
-            used as dependency ids. An iterable of argument names may also be
-            supplied to restrict this to those. Any type hints from the
-            builtins (str, int...) or the typing (:py:class:`~typing.Optional`,
+            used as the arguments dependency. An iterable of argument names may
+            also be specified to restrict this to those. Any type hints from
+            the builtins (str, int...) or the typing (:py:class:`~typing.Optional`,
             ...) are ignored. Defaults to :code:`True`.
-        container: :py:class:~.container.base.DependencyContainer` from which
+        container: :py:class:~.core.base.DependencyContainer` from which
             the dependencies should be retrieved. Defaults to the global
-            container if it is defined.
+            core if it is defined.
 
     Returns:
         The decorator to be applied or the injected function if the
@@ -76,7 +75,7 @@ def inject(func: Callable = None,
 
         # If nothing can be injected, just return the existing function without
         # any overhead.
-        if all(injection.dependency_id is None for injection in blueprint.injections):
+        if all(injection.dependency is None for injection in blueprint.injections):
             return wrapped
 
         wrapper = InjectedCallableWrapper(
@@ -121,8 +120,8 @@ def _build_injection_blueprint(func: Callable,
     return InjectionBlueprint(tuple([
         Injection(arg_name=arg.name,
                   required=not arg.has_default,
-                  dependency_id=dependency_id)
-        for arg, dependency_id in zip(arguments, dependencies)
+                  dependency=dependency)
+        for arg, dependency in zip(arguments, dependencies)
     ]))
 
 
@@ -140,8 +139,8 @@ def _build_arg_to_dependency(arguments: Arguments,
     elif isinstance(arg_map, c_abc.Mapping):
         arg_to_dependency = arg_map
     elif isinstance(arg_map, c_abc.Iterable):
-        arg_to_dependency = {arg.name: dependency_id
-                             for arg, dependency_id
+        arg_to_dependency = {arg.name: dependency
+                             for arg, dependency
                              in zip(arguments, arg_map)}
     else:
         raise ValueError('Only a mapping or a iterable is supported for '

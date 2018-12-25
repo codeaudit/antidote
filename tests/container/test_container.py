@@ -1,8 +1,8 @@
 import pytest
 
-from antidote import (Dependency, DependencyContainer, DependencyCycleError,
+from antidote import (DependencyContainer, DependencyCycleError,
                       DependencyInstantiationError, DependencyNotFoundError,
-                      Instance)
+                      DependencyInstance)
 from .utils import DummyFactoryProvider, DummyProvider
 
 
@@ -33,7 +33,7 @@ def container():
 
 def test_dependency_repr():
     o = object()
-    d = Instance(o, False)
+    d = DependencyInstance(o, False)
 
     assert repr(False) in repr(d)
     assert repr(o) in repr(d)
@@ -66,7 +66,7 @@ def test_register_provider(container: DependencyContainer):
     provider = DummyProvider()
     container.register_provider(provider)
 
-    # Can't check directly if the container is the same, as a proxy is used
+    # Can't check directly if the core is the same, as a proxy is used
     assert provider is container.providers[DummyProvider]
 
 
@@ -84,9 +84,9 @@ def test_getitem(container: DependencyContainer):
         container[ServiceWithNonMetDependency]
 
     assert isinstance(container[Service], Service)
-    assert isinstance(container[Dependency(Service)], Service)
+    assert isinstance(container.provide(Service), Service)
     assert 'Antidote' == container['name']
-    assert 'Antidote' == container[Dependency('name')]
+    assert 'Antidote' == container.provide('name')
 
 
 def test_singleton(container: DependencyContainer):
@@ -96,10 +96,9 @@ def test_singleton(container: DependencyContainer):
     }))
 
     service = container[Service]
-    container.providers[DummyFactoryProvider][Service] = lambda: object()
     assert service is container[Service]
 
-    container.providers[DummyFactoryProvider].create_singleton = False
+    container.providers[DummyFactoryProvider].singleton = False
     another_service = container[AnotherService]
     assert another_service is not container[AnotherService]
 

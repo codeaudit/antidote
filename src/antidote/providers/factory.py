@@ -1,78 +1,78 @@
 from typing import Any, Callable, Dict, Optional, Tuple
 
-from .._internal.utils import SlotReprMixin
-from ..container import Dependency, Instance, Provider
+from .._internal.utils import SlotsReprMixin
+from ..core import DependencyInstance, DependencyProvider
 from ..exceptions import DuplicateDependencyError
 
 
-class Build(Dependency):
+class Build(SlotsReprMixin):
     """
-    Custom Dependency used to pass arguments to the factory used to create
-    the given dependency ID.
+    Custom Dependency wrapper used to pass arguments to the factory used to
+    create the actual dependency.
 
     .. doctest::
 
-        >>> from antidote import factory, Build, global_container
-        >>> @factory(dependency_id='test')
+        >>> from antidote import Build, factory, global_container
+        >>> @factory(dependency='test')
         ... def f(name):
         ...     return {'name': name}
         >>> global_container[Build('test', name='me')]
         {'name': 'me'}
 
-    With no arguments, that is to say :code:`Build(dependency_id)`, it is
-    equivalent to :code:`dependency_id` for the
-    :py:class:`~.container.DependencyContainer`.
+    With no arguments, that is to say :code:`Build(x)`, it is equivalent to
+    :code:`x` for the :py:class:`~.core.DependencyContainer`.
     """
-    __slots__ = ('args', 'kwargs')
+    __slots__ = ('wrapped', 'args', 'kwargs')
+
+    __str__ = SlotsReprMixin.__repr__
 
     def __init__(self, *args, **kwargs):
         """
         Args:
-            *args: The first argument is the dependency ID, all others are
-                passed on to the factory.
+            *args: The first argument is the dependency, all others are passed
+                on to the factory.
             **kwargs: Passed on to the factory.
         """
-        super().__init__(args[0])
+        if not args:
+            raise TypeError("At least the dependency and one additional argument "
+                            "are mandatory.")
+
+        self.wrapped = args[0]
         self.args = args[1:]  # type: Tuple
         self.kwargs = kwargs  # type: Dict
 
-    def __hash__(self):
-        if self.args or self.kwargs:
-            try:
-                # Try most precise hash first
-                return hash((self.id, self.args, tuple(self.kwargs.items())))
-            except TypeError:
-                # If type error, return the best error-free hash possible
-                return hash((self.id, len(self.args), tuple(self.kwargs.keys())))
+        if not self.args and not self.kwargs:
+            raise TypeError("Without additional arguments, Build must not be used.")
 
-        return hash(self.id)
+    def __hash__(self):
+        try:
+            # Try most precise hash first
+            return hash((self.wrapped, self.args, tuple(self.kwargs.items())))
+        except TypeError:
+            # If type error, return the best error-free hash possible
+            return hash((self.wrapped, len(self.args), tuple(self.kwargs.keys())))
 
     def __eq__(self, other):
-        return ((not self.kwargs and not self.args
-                 and (self.id is other or self.id == other))
-                or (isinstance(other, Build)
-                    and (self.id is other.id or self.id == other.id)
-                    and self.args == other.args
-                    and self.kwargs == other.kwargs))
+        return isinstance(other, Build) \
+               and (self.wrapped is other.wrapped or self.wrapped == other.wrapped) \
+               and self.args == other.args \
+               and self.kwargs == self.kwargs
 
 
-class FactoryProvider(Provider):
+class FactoryProvider(DependencyProvider):
     """
     Provider managing factories. Also used to register classes directly.
     """
+    bound_types = (Build,)
 
     def __init__(self):
-        self._factories = dict()  # type: Dict[Any, DependencyFactory]
+        self._factories = dict()  # type: Dict[Any, Factory]
 
     def __repr__(self):
-        return (
-            "{}(factories={!r})"
-        ).format(
-            type(self).__name__,
-            tuple(self._factories.keys()),
-        )
+        return "{}(factories={!r})".format(type(self).__name__,
+                                           tuple(self._factories.keys()))
 
-    def provide(self, dependency: Dependency) -> Optional[Instance]:
+    def provide(self, dependency) -> Optional[DependencyInstance]:
         """
 
         Args:
@@ -81,8 +81,13 @@ class FactoryProvider(Provider):
         Returns:
 
         """
+        if isinstance(dependency, Build):
+            key = dependency.wrapped
+        else:
+            key = dependency
+
         try:
-            factory = self._factories[dependency.id]  # type: DependencyFactory
+            factory = self._factories[key]  # type: Factory
         except KeyError:
             return None
 
@@ -93,58 +98,58 @@ class FactoryProvider(Provider):
             args = tuple()
             kwargs = dict()
 
-        if factory.takes_dependency_id:
-            args = (dependency.id,) + args
+        if factory.takes_dependency:
+            args = (key,) + args
 
-        return Instance(factory(*args, **kwargs),
-                        singleton=factory.singleton)
+        return DependencyInstance(factory(*args, **kwargs),
+                                  singleton=factory.singleton)
 
     def register(self,
-                 dependency_id,
+                 dependency: Any,
                  factory: Callable,
                  singleton: bool = True,
-                 takes_dependency_id: bool = False):
+                 takes_dependency: bool = False):
         """
-        Register a factory for a dependency ID.
+        Register a factory for a dependency.
 
         Args:
-            dependency_id: ID of the dependency.
+            dependency: dependency to register.
             factory: Callable used to instantiate the dependency.
             singleton: Whether the dependency should be mark as singleton or
-                not for the :py:class:`~..container.DependencyContainer`.
-            takes_dependency_id: If True, the factory will be given the requested
-                dependency ID as its first arguments. This allows re-using the
+                not for the :py:class:`~..core.DependencyContainer`.
+            takes_dependency: If True, the factory will be given the requested
+                dependency as its first arguments. This allows re-using the
                 same factory for different dependencies.
         """
         if not callable(factory):
             raise ValueError("The `factory` must be callable.")
 
-        if dependency_id is None:
-            raise ValueError("`dependency_id` parameter must be specified.")
+        if dependency is None:
+            raise ValueError("`dependency` parameter must be specified.")
 
-        dependency_factory = DependencyFactory(factory=factory,
-                                               singleton=singleton,
-                                               takes_dependency_id=takes_dependency_id)
+        factory_ = Factory(func=factory,
+                           singleton=singleton,
+                           takes_dependency=takes_dependency)
 
-        if dependency_id in self._factories:
-            raise DuplicateDependencyError(dependency_id)
+        if dependency in self._factories:
+            raise DuplicateDependencyError(dependency)
 
-        self._factories[dependency_id] = dependency_factory
+        self._factories[dependency] = factory_
 
 
-class DependencyFactory(SlotReprMixin):
+class Factory(SlotsReprMixin):
     """
     Not part of the public API.
 
     Only used by the FactoryProvider to store information on how the factory
     has to be used.
     """
-    __slots__ = ('factory', 'singleton', 'takes_dependency_id')
+    __slots__ = ('func', 'singleton', 'takes_dependency')
 
-    def __init__(self, factory: Callable, singleton: bool, takes_dependency_id: bool):
-        self.factory = factory
+    def __init__(self, func: Callable, singleton: bool, takes_dependency: bool):
+        self.func = func
         self.singleton = singleton
-        self.takes_dependency_id = takes_dependency_id
+        self.takes_dependency = takes_dependency
 
     def __call__(self, *args, **kwargs):
-        return self.factory(*args, **kwargs)
+        return self.func(*args, **kwargs)

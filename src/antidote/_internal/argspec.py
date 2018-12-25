@@ -1,10 +1,10 @@
 import inspect
 from typing import Callable, Sequence
 
-from .utils import SlotReprMixin
+from .utils import SlotsReprMixin
 
 
-class Argument(SlotReprMixin):
+class Argument(SlotsReprMixin):
     def __init__(self, name: str, has_default: bool):
         self.name = name
         self.has_default = has_default

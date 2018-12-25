@@ -1,20 +1,19 @@
 # cython: language_level=3, language=c++
 # cython: boundscheck=False, wraparound=False
-# cython: linetrace=True
 import bisect
 import re
 from typing import Any, Callable, Dict, List
 
 # @formatter:off
-from libcpp cimport bool as cbool
+from cpython.dict cimport PyDict_GetItem
+from cpython.ref cimport PyObject
 
-# noinspection PyUnresolvedReferences
-from ..container cimport Dependency, Instance, Provider
+from antidote.core.container cimport DependencyInstance, DependencyProvider
 from ..exceptions import GetterPriorityConflict
 # @formatter:on
 
 
-cdef class ResourceProvider(Provider):
+cdef class ResourceProvider(DependencyProvider):
     def __init__(self):
         self._priority_sorted_getters_by_namespace = dict()  # type: Dict[str, List[ResourceGetter]]  # noqa
 
@@ -22,32 +21,45 @@ cdef class ResourceProvider(Provider):
         return "{}(getters={!r})".format(type(self).__name__,
                                          self._priority_sorted_getters_by_namespace)
 
-    cpdef Instance provide(self, Dependency dependency):
+    cpdef DependencyInstance provide(self, object dependency):
         cdef:
             ResourceGetter getter
-            object resource
+            object instance
+            str resource
             str namespace_
             str resource_name
-            list getters
+            PyObject*ptr
+            ssize_t i
 
-        if isinstance(dependency.id, str) and ':' in dependency.id:
-            namespace_, resource_name = dependency.id.split(':', 1)
-            getters = self._priority_sorted_getters_by_namespace.get(namespace_)
-            if getters is not None:
-                for getter in getters:
+        if isinstance(dependency, str):
+            resource = <str> dependency
+            i = resource.find(':')
+            if i == -1:
+                return
+            else:
+                namespace_ = resource[:i]
+                resource_name = resource[i + 1:]
+            ptr = PyDict_GetItem(self._priority_sorted_getters_by_namespace, namespace_)
+            if ptr != NULL:
+                for getter in <list> ptr:
                     try:
-                        resource = getter.get(resource_name)
+                        if getter.omit_namespace:
+                            instance = getter.func(resource_name)
+                        else:
+                            instance = getter.func(resource)
                     except LookupError:
                         pass
                     else:
-                        return Instance(resource, singleton=getter.singleton)
+                        return DependencyInstance.__new__(DependencyInstance,
+                                                          instance,
+                                                          getter.singleton)
 
     def register(self,
                  resource_getter: Callable[[str], Any],
-                 str namespace,
-                 float priority = 0,
-                 cbool omit_namespace = True,
-                 cbool singleton = True):
+                 namespace: str,
+                 priority: float = 0,
+                 omit_namespace: bool = True,
+                 singleton: bool = True):
         if not isinstance(namespace, str):
             raise ValueError(
                 "namespace must be a string, not a {!r}".format(type(namespace))
@@ -68,8 +80,7 @@ cdef class ResourceProvider(Provider):
 
         # Highest priority should be first
         idx = bisect.bisect([-g.priority for g in getters], -priority)
-        getters.insert(idx, ResourceGetter(getter=resource_getter,
-                                           namespace=namespace,
+        getters.insert(idx, ResourceGetter(func=resource_getter,
                                            priority=priority,
                                            omit_namespace=omit_namespace,
                                            singleton=singleton))
@@ -78,36 +89,27 @@ cdef class ResourceProvider(Provider):
 
 cdef class ResourceGetter:
     cdef:
-        readonly str namespace_
+        readonly object func
+        readonly bint singleton
+        readonly bint omit_namespace
         readonly float priority
-        readonly object singleton
-        readonly object _getter
-        readonly cbool _omit_namespace
-
-    def __repr__(self):
-        return "{}(getter={!r}, namespace={!r}, omit_namespace={!r}, " \
-               "priority={!r}, singleton={!r})".format(
-            type(self).__name__,
-            self._getter,
-            self.namespace_,
-            self._omit_namespace,
-            self.priority,
-            self.singleton
-        )
 
     def __init__(self,
-                 getter: Callable[[str], Any],
-                 str namespace,
+                 func: Callable[[str], Any],
                  float priority,
-                 cbool omit_namespace,
-                 cbool singleton):
-        self._getter = getter
-        self._omit_namespace = omit_namespace
-        self.namespace_ = namespace
+                 bint omit_namespace,
+                 bint singleton):
+        self.func = func
+        self.omit_namespace = omit_namespace
         self.singleton = singleton
         self.priority = priority
 
-    cdef object get(self, str resource_name):
-        if self._omit_namespace:
-            return self._getter(resource_name)
-        return self._getter(self.namespace_ + ':' + resource_name)
+    def __repr__(self):
+        return "{}(func={!r}, omit_namespace={!r}, priority={!r}, " \
+               "singleton={!r})".format(
+            type(self).__name__,
+            self.func,
+            self.omit_namespace,
+            self.priority,
+            self.singleton
+        )

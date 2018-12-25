@@ -1,24 +1,24 @@
 from typing import Callable, Sequence
 
-from .._internal.utils import SlotReprMixin
-from ..container import DependencyContainer
+from .._internal.utils import SlotsReprMixin
+from ..core import DependencyContainer
 from ..exceptions import DependencyNotFoundError
 
 
-class Injection(SlotReprMixin):
+class Injection(SlotsReprMixin):
     """
-    Maps an argument name to its dependency ID and if the injection is required,
+    Maps an argument name to its dependency and if the injection is required,
     which is equivalent to no default argument.
     """
-    __slots__ = ('arg_name', 'required', 'dependency_id')
+    __slots__ = ('arg_name', 'required', 'dependency')
 
-    def __init__(self, arg_name, required, dependency_id):
+    def __init__(self, arg_name: str, required: bool, dependency):
         self.arg_name = arg_name
         self.required = required
-        self.dependency_id = dependency_id
+        self.dependency = dependency
 
 
-class InjectionBlueprint(SlotReprMixin):
+class InjectionBlueprint(SlotsReprMixin):
     """
     Stores all the injections for a function.
     """
@@ -79,14 +79,14 @@ def _inject_kwargs(container: DependencyContainer,
     """
     dirty_kwargs = False
     for injection in blueprint.injections[offset:]:
-        if injection.dependency_id is not None and injection.arg_name not in kwargs:
-            instance = container.provide(injection.dependency_id)
+        if injection.dependency is not None and injection.arg_name not in kwargs:
+            instance = container.provide(injection.dependency)
             if instance is not container.SENTINEL:
                 if not dirty_kwargs:
                     kwargs = kwargs.copy()
                     dirty_kwargs = True
                 kwargs[injection.arg_name] = instance
             elif injection.required:
-                raise DependencyNotFoundError(injection.dependency_id)
+                raise DependencyNotFoundError(injection.dependency)
 
     return kwargs

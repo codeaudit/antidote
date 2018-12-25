@@ -1,7 +1,7 @@
 import pytest
 
 from antidote import (DependencyInstantiationError, DependencyNotProvidableError,
-                      Provider)
+                      DependencyProvider)
 from antidote.helpers import factory, new_container, provider, register, resource
 from antidote.injection import inject, wire
 
@@ -112,7 +112,7 @@ class B1(DummyMethodMixin):
         return cls(service, another_service)
 
 
-class MyProvider(Provider, DummyMethodMixin):
+class MyProvider(DependencyProvider, DummyMethodMixin):
     def __init__(self,
                  service: Service,
                  another_service=None):
@@ -214,7 +214,7 @@ def parametrize_injection(tests, lazy=False, return_wrapped=False,
                     try:
                         if isinstance(inj_kwargs['arg_map'], tuple):
                             inj_kwargs['arg_map'] = (
-                                [None] + list(inj_kwargs['arg_map'])
+                                    [None] + list(inj_kwargs['arg_map'])
                             )
                     except KeyError:
                         pass

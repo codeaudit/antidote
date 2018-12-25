@@ -1,10 +1,10 @@
 import inspect
-from typing import Any, Callable, Iterable, Mapping, Union, cast
+from typing import Any, Callable, Iterable, Union, cast
 
 from .._internal.global_container import get_global_container
 from .._internal.helpers import prepare_callable, prepare_class
-from ..container import DependencyContainer, Provider
-from ..injection import inject, ARG_MAP_TYPE
+from ..core import DependencyContainer, DependencyProvider
+from ..injection import ARG_MAP_TYPE, inject
 from ..providers import FactoryProvider, ResourceProvider, Tag, TagProvider
 
 
@@ -32,33 +32,32 @@ def register(class_: type = None,
             further will receive the same instance.
         factory: Callable to be used when building the class, this allows to
             re-use the same factory for subclasses for example. The dependency
-            ID is given as first argument. If a string is specified, it is
+            is given as first argument. If a string is specified, it is
             interpreted as the name of the method which has to be used to build
-            the class. The dependency ID is given as first argument for
-            static methods but not for class methods.
+            the class. The dependency is given as first argument for static
+            methods but not for class methods.
         auto_wire: Injects automatically the dependencies of the methods
             specified, or only of :code:`__init__()` if True.
-        arg_map: Can be either a mapping of arguments name to their dependency
-            id, an iterable of dependency ids or a function which returns the
-            dependency ID for an arguments name. If an iterable is specified,
-            the position of the arguments is used to determine their
-            respective dependency. An argument may be skipped by using
-            :code:`None` as as placeholder. Type hints are overridden. Defaults
-            to :code:`None`.
-        use_names: Whether or not the arguments' name should be used as
-            dependency ids. An iterable of argument names may also be
+        arg_map: Can be either a mapping of arguments name to their dependency,
+            an iterable of dependencies or a function which returns the
+            dependency given the arguments name. If an iterable is specified,
+            the position of the arguments is used to determine their respective
+            dependency. An argument may be skipped by using :code:`None` as a
+            placeholder. Type hints are overridden. Defaults to :code:`None`.
+        use_names: Whether or not the arguments' name should be used as their
+            respective dependency. An iterable of argument names may also be
             supplied to restrict this to those. Defaults to :code:`False`.
         use_type_hints: Whether or not the type hints (annotations) should be
-            used as dependency ids. An iterable of argument names may also be
-            supplied to restrict this to those. Any type hints from the
-            builtins (str, int...) or the typing (:py:class:`~typing.Optional`,
+            used as the arguments dependency. An iterable of argument names may
+            also be specified to restrict this to those. Any type hints from
+            the builtins (str, int...) or the typing (:py:class:`~typing.Optional`,
             ...) are ignored. Defaults to :code:`True`.
         tags: Iterable of tag to be applied. Those must be either strings
             (the tag name) or :py:class:`~.providers.tag.Tag`. All
             dependencies with a specific tag can then be retrieved with
             a :py:class:`~.providers.tag.Tagged`.
-        container: :py:class:~.container.base.DependencyContainer` to which the
-            dependency should be attached. Defaults to the global container if
+        container: :py:class:~.core.base.DependencyContainer` to which the
+            dependency should be attached. Defaults to the global core if
             it is defined.
 
     Returns:
@@ -69,13 +68,13 @@ def register(class_: type = None,
 
     def register_class(cls):
         nonlocal auto_wire, factory
-        takes_dependency_id = True
+        takes_dependency = True
 
         # If the factory is the class itself or if it's a classmethod, it is
         # not necessary to inject the dependency ID.
         if factory is None or (isinstance(factory, str)
                                and inspect.ismethod(getattr(cls, factory))):
-            takes_dependency_id = False
+            takes_dependency = False
 
         if auto_wire is None:
             if isinstance(factory, str):
@@ -107,10 +106,10 @@ def register(class_: type = None,
                              "not {!r}".format(type(factory)))
 
         factory_provider = cast(FactoryProvider, container.providers[FactoryProvider])
-        factory_provider.register(dependency_id=cls,
+        factory_provider.register(dependency=cls,
                                   factory=injected_factory,
                                   singleton=singleton,
-                                  takes_dependency_id=takes_dependency_id)
+                                  takes_dependency=takes_dependency)
 
         if tags is not None:
             tag_provider = cast(TagProvider, container.providers[TagProvider])
@@ -123,8 +122,8 @@ def register(class_: type = None,
 
 def factory(func: Callable = None,
             *,
-            dependency_id: Any = None,
-            dependency_ids: Iterable[Any] = None,
+            dependency: Any = None,
+            dependencies: Iterable[Any] = None,
             auto_wire: Union[bool, Iterable[str]] = True,
             singleton: bool = True,
             arg_map: ARG_MAP_TYPE = None,
@@ -137,13 +136,12 @@ def factory(func: Callable = None,
 
     Args:
         func: Callable which builds the dependency.
-        dependency_id: Dependency ID of the dependency built by the decorated
-            factory. Overrides the return type hint. This is not compatible
-            with the parameter  :code:`dependency_ids`.
-        dependency_ids: Iterable of dependency IDs for which the factory should
-            be used. If used, the factory should accept the dependency ID as its
-            first argument. This is not compatible with the parameter
-            :code:`dependency_id`.
+        dependency: Dependency built by the decorated factory. Overrides the
+            return type hint. This is not compatible with the parameter
+            :code:`dependencies`.
+        dependencies: Dependencies built by the decorated factory. If used,
+            the factory must accept the dependency as its first argument. This i
+            s not compatible with the parameter :code:`dependency`.
         singleton: If True, `func` will only be called once. If not it is
             called at each injection.
         auto_wire: If :code:`func` is a function, its dependencies are
@@ -152,27 +150,26 @@ def factory(func: Callable = None,
             :code:`__call__()` will be injected if True. One may also
             provide an iterable of method names requiring dependency
             injection.
-        arg_map: Can be either a mapping of arguments name to their dependency
-            id, an iterable of dependency ids or a function which returns the
-            dependency ID for an arguments name. If an iterable is specified,
-            the position of the arguments is used to determine their
-            respective dependency. An argument may be skipped by using
-            :code:`None` as as placeholder. Type hints are overridden. Defaults
-            to :code:`None`.
-        use_names: Whether or not the arguments' name should be used as
-            dependency ids. An iterable of argument names may also be
+        arg_map: Can be either a mapping of arguments name to their dependency,
+            an iterable of dependencies or a function which returns the
+            dependency given the arguments name. If an iterable is specified,
+            the position of the arguments is used to determine their respective
+            dependency. An argument may be skipped by using :code:`None` as a
+            placeholder. Type hints are overridden. Defaults to :code:`None`.
+        use_names: Whether or not the arguments' name should be used as their
+            respective dependency. An iterable of argument names may also be
             supplied to restrict this to those. Defaults to :code:`False`.
         use_type_hints: Whether or not the type hints (annotations) should be
-            used as dependency ids. An iterable of argument names may also be
-            supplied to restrict this to those. Any type hints from the
-            builtins (str, int...) or the typing (:py:class:`~typing.Optional`,
+            used as the arguments dependency. An iterable of argument names may
+            also be specified to restrict this to those. Any type hints from
+            the builtins (str, int...) or the typing (:py:class:`~typing.Optional`,
             ...) are ignored. Defaults to :code:`True`.
         tags: Iterable of tag to be applied. Those must be either strings
             (the tag name) or :py:class:`~.providers.tag.Tag`. All
             dependencies with a specific tag can then be retrieved with
             a :py:class:`~.providers.tag.Tagged`.
-        container: :py:class:~.container.base.DependencyContainer` to which the
-            dependency should be attached. Defaults to the global container if
+        container: :py:class:~.core.base.DependencyContainer` to which the
+            dependency should be attached. Defaults to the global core if
             it is defined.
 
     Returns:
@@ -181,11 +178,11 @@ def factory(func: Callable = None,
     """
     container = container or get_global_container()
 
-    if dependency_ids is not None and dependency_id is not None:
-        raise ValueError("Cannot define both dependency_ids and dependency_id")
+    if dependencies is not None and dependency is not None:
+        raise ValueError("Cannot define both dependencies and dependency")
 
     def register_factory(obj):
-        nonlocal dependency_id
+        nonlocal dependency
         obj, factory_, return_type_hint = prepare_callable(
             obj,
             auto_wire=auto_wire,
@@ -195,32 +192,33 @@ def factory(func: Callable = None,
             container=container
         )
 
-        takes_dependency_id = False
-        if dependency_ids is not None:
-            _dependency_ids = dependency_ids
-            takes_dependency_id = True
-        elif dependency_id is not None:
-            _dependency_ids = [dependency_id]
+        takes_dependency = False
+        if dependencies is not None:
+            _dependencies = dependencies
+            takes_dependency = True
+        elif dependency is not None:
+            _dependencies = [dependency]
         else:
-            _dependency_ids = [return_type_hint]
+            _dependencies = [return_type_hint]
 
-        _dependency_ids = [did for did in _dependency_ids if did is not None]
+        _dependencies = [did for did in _dependencies if did is not None]
 
-        if not _dependency_ids:
-            raise ValueError("No dependency ID defined.")
+        if not _dependencies:
+            raise ValueError("No dependency defined.")
 
-        for id_ in _dependency_ids:
+        for _dependency in _dependencies:
             factory_provider = cast(FactoryProvider,
                                     container.providers[FactoryProvider])
             factory_provider.register(factory=factory_,
                                       singleton=singleton,
-                                      dependency_id=id_,
-                                      takes_dependency_id=takes_dependency_id)
+                                      dependency=_dependency,
+                                      takes_dependency=takes_dependency)
 
         if tags is not None:
             tag_provider = cast(TagProvider, container.providers[TagProvider])
-            for id_ in _dependency_ids:
-                tag_provider.register(id_, tags)
+            for _dependency in _dependencies:
+                tag_provider.register(dependency=_dependency,
+                                      tags=tags)
 
         return obj
 
@@ -239,28 +237,27 @@ def provider(class_: type = None,
     Args:
         class_: class to register as a provider. The class must have a
             :code:`__antidote_provide()` method accepting as first argument
-            the dependency id. Variable keyword and positional arguments
-            must be accepted as they may be provided.
+            the dependency. Variable keyword and positional arguments must be
+            accepted as they may be provided.
         auto_wire: If True, the dependencies of :code:`__init__()` are
             injected. An iterable of method names which require dependency
             injection may also be specified.
-        arg_map: Can be either a mapping of arguments name to their dependency
-            id, an iterable of dependency ids or a function which returns the
-            dependency ID for an arguments name. If an iterable is specified,
-            the position of the arguments is used to determine their
-            respective dependency. An argument may be skipped by using
-            :code:`None` as as placeholder. Type hints are overridden. Defaults
-            to :code:`None`.
-        use_names: Whether or not the arguments' name should be used as
-            dependency ids. An iterable of argument names may also be
+        arg_map: Can be either a mapping of arguments name to their dependency,
+            an iterable of dependencies or a function which returns the
+            dependency given the arguments name. If an iterable is specified,
+            the position of the arguments is used to determine their respective
+            dependency. An argument may be skipped by using :code:`None` as a
+            placeholder. Type hints are overridden. Defaults to :code:`None`.
+        use_names: Whether or not the arguments' name should be used as their
+            respective dependency. An iterable of argument names may also be
             supplied to restrict this to those. Defaults to :code:`False`.
         use_type_hints: Whether or not the type hints (annotations) should be
-            used as dependency ids. An iterable of argument names may also be
-            supplied to restrict this to those. Any type hints from the
-            builtins (str, int...) or the typing (:py:class:`~typing.Optional`,
+            used as the arguments dependency. An iterable of argument names may
+            also be specified to restrict this to those. Any type hints from
+            the builtins (str, int...) or the typing (:py:class:`~typing.Optional`,
             ...) are ignored. Defaults to :code:`True`.
-        container: :py:class:~.container.base.DependencyContainer` to which the
-            dependency should be attached. Defaults to the global container if
+        container: :py:class:~.core.base.DependencyContainer` to which the
+            dependency should be attached. Defaults to the global core if
             it is defined.
 
     Returns:
@@ -269,7 +266,7 @@ def provider(class_: type = None,
     container = container or get_global_container()
 
     def register_provider(cls):
-        if not issubclass(cls, Provider):
+        if not issubclass(cls, DependencyProvider):
             raise ValueError("A provider must be subclass of Provider.")
 
         cls = prepare_class(cls,
@@ -314,28 +311,27 @@ def resource(func: Callable[[str], Any] = None,
             they share the same namespace. Highest priority wins. Defaults to
             0.
         omit_namespace: Whether or not the namespace should be kept when
-            passing the dependency ID to the :code:`resource_getter`. Defaults
+            passing the dependency to the :code:`resource_getter`. Defaults
             to True.
         auto_wire: If True, the dependencies of :code:`__init__()` are
             injected. An iterable of method names which require dependency
             injection may also be specified.
-        arg_map: Can be either a mapping of arguments name to their dependency
-            id, an iterable of dependency ids or a function which returns the
-            dependency ID for an arguments name. If an iterable is specified,
-            the position of the arguments is used to determine their
-            respective dependency. An argument may be skipped by using
-            :code:`None` as as placeholder. Type hints are overridden. Defaults
-            to :code:`None`.
-        use_names: Whether or not the arguments' name should be used as
-            dependency ids. An iterable of argument names may also be
+        arg_map: Can be either a mapping of arguments name to their dependency,
+            an iterable of dependencies or a function which returns the
+            dependency given the arguments name. If an iterable is specified,
+            the position of the arguments is used to determine their respective
+            dependency. An argument may be skipped by using :code:`None` as a
+            placeholder. Type hints are overridden. Defaults to :code:`None`.
+        use_names: Whether or not the arguments' name should be used as their
+            respective dependency. An iterable of argument names may also be
             supplied to restrict this to those. Defaults to :code:`False`.
         use_type_hints: Whether or not the type hints (annotations) should be
-            used as dependency ids. An iterable of argument names may also be
-            supplied to restrict this to those. Any type hints from the
-            builtins (str, int...) or the typing (:py:class:`~typing.Optional`,
+            used as the arguments dependency. An iterable of argument names may
+            also be specified to restrict this to those. Any type hints from
+            the builtins (str, int...) or the typing (:py:class:`~typing.Optional`,
             ...) are ignored. Defaults to :code:`True`.
-        container: :py:class:~.container.base.DependencyContainer` to which the
-            dependency should be attached. Defaults to the global container if
+        container: :py:class:~.core.base.DependencyContainer` to which the
+            dependency should be attached. Defaults to the global core if
             it is defined.
 
     Returns:
