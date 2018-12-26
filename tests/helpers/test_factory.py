@@ -1,7 +1,7 @@
 import pytest
 
-from antidote import (DependencyContainer, FactoryProvider, TagProvider)
-from antidote.helpers import factory
+from antidote import DependencyContainer, factory
+from antidote.providers import FactoryProvider, TagProvider
 
 
 @pytest.fixture()
@@ -30,7 +30,7 @@ class SuperService:
 
 
 def test_function(container):
-    @factory(dependency=Service, container=container)
+    @factory(builds=(Service,), container=container)
     def build():
         return Service()
 
@@ -40,7 +40,7 @@ def test_function(container):
 
 
 def test_class(container):
-    @factory(container=container, dependency=Service)
+    @factory(container=container, builds=(Service,))
     class ServiceFactory:
         def __call__(self):
             return Service()
@@ -86,7 +86,7 @@ def test_missing_dependency(container):
 
 def test_missing_call(container):
     with pytest.raises(ValueError):
-        @factory(dependency=Service, container=container)
+        @factory(builds=(Service,), container=container)
         class FaultyServiceFactory2:
             pass
 

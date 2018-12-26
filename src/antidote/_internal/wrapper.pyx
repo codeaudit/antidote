@@ -50,7 +50,7 @@ cdef class InjectedCallableWrapper:
         InjectionBlueprint __blueprint
         int __injection_offset
 
-    def __init__(self,
+    def __cinit__(self,
                  DependencyContainer container,
                  InjectionBlueprint blueprint,
                  object wrapped,
@@ -70,10 +70,13 @@ cdef class InjectedCallableWrapper:
         return self.__wrapped__(*args, **kwargs)
 
     def __get__(self, instance, owner):
-        skip_self = instance is not None
-        func = self.__wrapped__.__get__(instance, owner)
-        return InjectedBoundCallableWrapper(self.__container, self.__blueprint,
-                                            func, skip_self=skip_self)
+        return InjectedBoundCallableWrapper.__new__(
+            InjectedBoundCallableWrapper,
+            self.__container,
+            self.__blueprint,
+            self.__wrapped__.__get__(instance, owner),
+            instance is not None
+        )
 
 cdef class InjectedBoundCallableWrapper(InjectedCallableWrapper):
     def __get__(self, instance, owner):

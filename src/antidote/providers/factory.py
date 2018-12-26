@@ -63,7 +63,7 @@ class FactoryProvider(DependencyProvider):
     """
     Provider managing factories. Also used to register classes directly.
     """
-    bound_types = (Build,)
+    bound_dependency_types = (Build,)
 
     def __init__(self):
         self._factories = dict()  # type: Dict[Any, Factory]

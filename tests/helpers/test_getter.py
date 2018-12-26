@@ -3,8 +3,8 @@ import textwrap
 
 import pytest
 
-from antidote import (DependencyContainer, ResourceProvider)
-from antidote.helpers import resource
+from antidote import DependencyContainer, resource
+from antidote.providers import ResourceProvider
 
 
 @pytest.fixture()

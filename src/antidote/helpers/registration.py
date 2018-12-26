@@ -1,11 +1,12 @@
 import inspect
-from typing import Any, Callable, Iterable, Union, cast
+from typing import Any, Callable, Iterable, Union, cast, Tuple, List
 
 from .._internal.global_container import get_global_container
 from .._internal.helpers import prepare_callable, prepare_class
-from ..core import DependencyContainer, DependencyProvider
-from ..injection import ARG_MAP_TYPE, inject
-from ..providers import FactoryProvider, ResourceProvider, Tag, TagProvider
+from ..core import DEPENDENCIES_TYPE, DependencyContainer, DependencyProvider, inject
+from ..providers.factory import FactoryProvider
+from ..providers.resource import ResourceProvider
+from ..providers.tag import Tag, TagProvider
 
 
 def include():
@@ -17,7 +18,7 @@ def register(class_: type = None,
              singleton: bool = True,
              factory: Union[Callable, str] = None,
              auto_wire: Union[bool, Iterable[str]] = None,
-             arg_map: ARG_MAP_TYPE = None,
+             dependencies: DEPENDENCIES_TYPE = None,
              use_names: Union[bool, Iterable[str]] = None,
              use_type_hints: Union[bool, Iterable[str]] = None,
              tags: Iterable[Union[str, Tag]] = None,
@@ -38,9 +39,9 @@ def register(class_: type = None,
             methods but not for class methods.
         auto_wire: Injects automatically the dependencies of the methods
             specified, or only of :code:`__init__()` if True.
-        arg_map: Can be either a mapping of arguments name to their dependency,
-            an iterable of dependencies or a function which returns the
-            dependency given the arguments name. If an iterable is specified,
+        dependencies: Can be either a mapping of arguments name to their
+            dependency, an iterable of dependencies or a function which returns
+            the dependency given the arguments name. If an iterable is specified,
             the position of the arguments is used to determine their respective
             dependency. An argument may be skipped by using :code:`None` as a
             placeholder. Type hints are overridden. Defaults to :code:`None`.
@@ -79,17 +80,16 @@ def register(class_: type = None,
         if auto_wire is None:
             if isinstance(factory, str):
                 auto_wire = (factory,)
-            elif factory is None:
-                auto_wire = ('__init__',)
             else:
-                auto_wire = False
+                auto_wire = True
 
-        cls = prepare_class(cls,
-                            auto_wire=auto_wire,
-                            arg_map=arg_map,
-                            use_names=use_names,
-                            use_type_hints=use_type_hints,
-                            container=container)
+        if auto_wire:
+            cls = prepare_class(cls,
+                                auto_wire=auto_wire,
+                                dependencies=dependencies,
+                                use_names=use_names,
+                                use_type_hints=use_type_hints,
+                                container=container)
 
         if factory is None:
             injected_factory = cls
@@ -97,7 +97,7 @@ def register(class_: type = None,
             injected_factory = getattr(cls, factory)
         elif callable(factory):
             injected_factory = inject(factory,
-                                      arg_map=arg_map,
+                                      dependencies=dependencies,
                                       use_names=use_names,
                                       use_type_hints=use_type_hints,
                                       container=container)
@@ -122,11 +122,10 @@ def register(class_: type = None,
 
 def factory(func: Callable = None,
             *,
-            dependency: Any = None,
-            dependencies: Iterable[Any] = None,
+            builds: Union[Tuple[Any], List[Any]] = None,
             auto_wire: Union[bool, Iterable[str]] = True,
             singleton: bool = True,
-            arg_map: ARG_MAP_TYPE = None,
+            dependencies: DEPENDENCIES_TYPE = None,
             use_names: Union[bool, Iterable[str]] = None,
             use_type_hints: Union[bool, Iterable[str]] = None,
             tags: Iterable[Union[str, Tag]] = None,
@@ -136,10 +135,7 @@ def factory(func: Callable = None,
 
     Args:
         func: Callable which builds the dependency.
-        dependency: Dependency built by the decorated factory. Overrides the
-            return type hint. This is not compatible with the parameter
-            :code:`dependencies`.
-        dependencies: Dependencies built by the decorated factory. If used,
+        builds: Dependencies built by the decorated factory. If used,
             the factory must accept the dependency as its first argument. This i
             s not compatible with the parameter :code:`dependency`.
         singleton: If True, `func` will only be called once. If not it is
@@ -150,9 +146,9 @@ def factory(func: Callable = None,
             :code:`__call__()` will be injected if True. One may also
             provide an iterable of method names requiring dependency
             injection.
-        arg_map: Can be either a mapping of arguments name to their dependency,
-            an iterable of dependencies or a function which returns the
-            dependency given the arguments name. If an iterable is specified,
+        dependencies: Can be either a mapping of arguments name to their
+            dependency, an iterable of dependencies or a function which returns
+            the dependency given the arguments name. If an iterable is specified,
             the position of the arguments is used to determine their respective
             dependency. An argument may be skipped by using :code:`None` as a
             placeholder. Type hints are overridden. Defaults to :code:`None`.
@@ -178,33 +174,24 @@ def factory(func: Callable = None,
     """
     container = container or get_global_container()
 
-    if dependencies is not None and dependency is not None:
-        raise ValueError("Cannot define both dependencies and dependency")
+    if builds is not None and not isinstance(builds, (tuple, list)):
+        pass
 
     def register_factory(obj):
-        nonlocal dependency
         obj, factory_, return_type_hint = prepare_callable(
             obj,
             auto_wire=auto_wire,
-            arg_map=arg_map,
+            dependencies=dependencies,
             use_names=use_names,
             use_type_hints=use_type_hints,
             container=container
         )
 
-        takes_dependency = False
-        if dependencies is not None:
-            _dependencies = dependencies
-            takes_dependency = True
-        elif dependency is not None:
-            _dependencies = [dependency]
-        else:
-            _dependencies = [return_type_hint]
-
-        _dependencies = [did for did in _dependencies if did is not None]
-
-        if not _dependencies:
+        if builds is None and not return_type_hint:
             raise ValueError("No dependency defined.")
+
+        _dependencies = builds if builds is not None else [return_type_hint]
+        takes_dependency = len(_dependencies) > 1
 
         for _dependency in _dependencies:
             factory_provider = cast(FactoryProvider,
@@ -228,7 +215,7 @@ def factory(func: Callable = None,
 def provider(class_: type = None,
              *,
              auto_wire: Union[bool, Iterable[str]] = True,
-             arg_map: ARG_MAP_TYPE = None,
+             dependencies: DEPENDENCIES_TYPE = None,
              use_names: Union[bool, Iterable[str]] = None,
              use_type_hints: Union[bool, Iterable[str]] = None,
              container: DependencyContainer = None):
@@ -242,9 +229,9 @@ def provider(class_: type = None,
         auto_wire: If True, the dependencies of :code:`__init__()` are
             injected. An iterable of method names which require dependency
             injection may also be specified.
-        arg_map: Can be either a mapping of arguments name to their dependency,
-            an iterable of dependencies or a function which returns the
-            dependency given the arguments name. If an iterable is specified,
+        dependencies: Can be either a mapping of arguments name to their
+            dependency, an iterable of dependencies or a function which returns
+            the dependency given the arguments name. If an iterable is specified,
             the position of the arguments is used to determine their respective
             dependency. An argument may be skipped by using :code:`None` as a
             placeholder. Type hints are overridden. Defaults to :code:`None`.
@@ -271,7 +258,7 @@ def provider(class_: type = None,
 
         cls = prepare_class(cls,
                             auto_wire=auto_wire,
-                            arg_map=arg_map,
+                            dependencies=dependencies,
                             use_names=use_names,
                             use_type_hints=use_type_hints,
                             container=container)
@@ -290,7 +277,7 @@ def resource(func: Callable[[str], Any] = None,
              omit_namespace: bool = None,
              priority: float = 0,
              auto_wire: Union[bool, Iterable[str]] = True,
-             arg_map: ARG_MAP_TYPE = None,
+             dependencies: DEPENDENCIES_TYPE = None,
              use_names: Union[bool, Iterable[str]] = None,
              use_type_hints: Union[bool, Iterable[str]] = None,
              container: DependencyContainer = None
@@ -316,9 +303,9 @@ def resource(func: Callable[[str], Any] = None,
         auto_wire: If True, the dependencies of :code:`__init__()` are
             injected. An iterable of method names which require dependency
             injection may also be specified.
-        arg_map: Can be either a mapping of arguments name to their dependency,
-            an iterable of dependencies or a function which returns the
-            dependency given the arguments name. If an iterable is specified,
+        dependencies: Can be either a mapping of arguments name to their
+            dependency, an iterable of dependencies or a function which returns
+            the dependency given the arguments name. If an iterable is specified,
             the position of the arguments is used to determine their respective
             dependency. An argument may be skipped by using :code:`None` as a
             placeholder. Type hints are overridden. Defaults to :code:`None`.
@@ -348,7 +335,7 @@ def resource(func: Callable[[str], Any] = None,
 
         obj, getter_, _ = prepare_callable(obj,
                                            auto_wire=auto_wire,
-                                           arg_map=arg_map,
+                                           dependencies=dependencies,
                                            use_names=use_names,
                                            use_type_hints=use_type_hints,
                                            container=container)

@@ -1,9 +1,9 @@
 import pytest
 
-from antidote import (DependencyInstantiationError, DependencyNotProvidableError,
-                      DependencyProvider)
-from antidote.helpers import factory, new_container, provider, register, resource
-from antidote.injection import inject, wire
+from antidote import (DependencyProvider, factory, inject, new_container, provider,
+                      register, resource, wire)
+from antidote.exceptions import (DependencyInstantiationError,
+                                 DependencyNotProvidableError)
 
 
 class Service:
@@ -25,29 +25,25 @@ class SuperService:
 @pytest.fixture()
 def container():
     c = new_container()
-
     c.update_singletons({cls: cls() for cls in [Service, AnotherService,
                                                 YetAnotherService]})
     c.update_singletons(dict(service=object(),
                              another_service=object()))
-
     return c
 
 
-class DummyMethodMixin:
-    def method(self, yet_another_service: YetAnotherService):
-        return yet_another_service
-
-
-class MyService(DummyMethodMixin):
+class MyService:
     def __init__(self,
                  service: Service,
                  another_service=None):
         self.service = service
         self.another_service = another_service
 
+    def method(self, yet_another_service: YetAnotherService):
+        return yet_another_service
 
-class F1(DummyMethodMixin):
+
+class F1:
     def __init__(self,
                  service: Service,
                  another_service=None):
@@ -57,23 +53,32 @@ class F1(DummyMethodMixin):
     def __call__(self) -> MyService:
         return MyService(self.service, self.another_service)
 
+    def method(self, yet_another_service: YetAnotherService):
+        return yet_another_service
 
-class F2(DummyMethodMixin):
+
+class F2:
     def __init__(self, service: Service):
         self.service = service
 
     def __call__(self, another_service=None) -> MyService:
         return MyService(self.service, another_service)
 
+    def method(self, yet_another_service: YetAnotherService):
+        return yet_another_service
 
-class F3(DummyMethodMixin):
+
+class F3:
     def __call__(self,
                  service: Service,
                  another_service=None) -> MyService:
         return MyService(service, another_service)
 
+    def method(self, yet_another_service: YetAnotherService):
+        return yet_another_service
 
-class G1(DummyMethodMixin):
+
+class G1:
     def __init__(self,
                  service: Service,
                  another_service=None):
@@ -83,24 +88,33 @@ class G1(DummyMethodMixin):
     def __call__(self, x) -> MyService:
         return MyService(self.service, self.another_service)
 
+    def method(self, yet_another_service: YetAnotherService):
+        return yet_another_service
 
-class G2(DummyMethodMixin):
+
+class G2:
     def __init__(self, service: Service):
         self.service = service
 
     def __call__(self, x, another_service=None) -> MyService:
         return MyService(self.service, another_service)
 
+    def method(self, yet_another_service: YetAnotherService):
+        return yet_another_service
 
-class G3(DummyMethodMixin):
+
+class G3:
     def __call__(self,
                  x,
                  service: Service,
                  another_service=None) -> MyService:
         return MyService(service, another_service)
 
+    def method(self, yet_another_service: YetAnotherService):
+        return yet_another_service
 
-class B1(DummyMethodMixin):
+
+class B1:
     def __init__(self, s, a):
         self.service = s
         self.another_service = a
@@ -111,8 +125,11 @@ class B1(DummyMethodMixin):
               another_service=None):
         return cls(service, another_service)
 
+    def method(self, yet_another_service: YetAnotherService):
+        return yet_another_service
 
-class MyProvider(DependencyProvider, DummyMethodMixin):
+
+class MyProvider(DependencyProvider):
     def __init__(self,
                  service: Service,
                  another_service=None):
@@ -121,6 +138,9 @@ class MyProvider(DependencyProvider, DummyMethodMixin):
 
     def provide(self, dependency):
         raise DependencyNotProvidableError(dependency)
+
+    def method(self, yet_another_service: YetAnotherService):
+        return yet_another_service
 
 
 def f1(service: Service, another_service=None) -> MyService:
@@ -164,7 +184,7 @@ def register_external_build(class_=None, **kwargs):
     return register(class_, factory=build, **kwargs)
 
 
-class_one_inj_tests = [
+class_tests = [
     [provider, MyProvider],
     [wire_, MyService],
     [register, MyService],
@@ -172,14 +192,9 @@ class_one_inj_tests = [
     [factory, F3],
     [getter_, G1],
     [getter_, G3],
-]
-
-class_two_inj_tests = [
     [factory, F2],
     [getter_, G2],
 ]
-
-class_tests = class_one_inj_tests + class_two_inj_tests
 
 function_tests = [
     [factory, f1],
@@ -212,10 +227,12 @@ def parametrize_injection(tests, lazy=False, return_wrapped=False,
                 if ('getter' in name and original_wrapped is not G1) \
                         or 'register_external' in name:
                     try:
-                        if isinstance(inj_kwargs['arg_map'], tuple):
-                            inj_kwargs['arg_map'] = (
-                                    [None] + list(inj_kwargs['arg_map'])
+                        if isinstance(inj_kwargs['dependencies'], tuple):
+                            # @formatter:off
+                            inj_kwargs['dependencies'] = (
+                                [None] + list(inj_kwargs['dependencies'])
                             )
+                            # @formatter:on
                     except KeyError:
                         pass
 
@@ -260,7 +277,7 @@ def test_basic_wiring(container, instance: MyService):
 
 @parametrize_injection(class_tests, return_wrapped=True,
                        auto_wire=['__init__', 'method'])
-def test_complex_wiring(container, instance: DummyMethodMixin):
+def test_complex_wiring(container, instance: MyService):
     assert instance.method() is container[YetAnotherService]
 
 
@@ -297,56 +314,46 @@ def test_type_hints_only_another_service(container, create_instance):
             instance()
 
 
-@parametrize_injection(all_tests,
-                       arg_map=lambda s: AnotherService if s == 'service' else None)
-def test_arg_map_func_override(container, instance: MyService):
+@parametrize_injection(
+    all_tests,
+    dependencies=lambda s: AnotherService if s == 'service' else None
+)
+def test_dependencies_func_override(container, instance: MyService):
     assert instance.service is container[AnotherService]
     assert instance.another_service is None
 
 
 @parametrize_injection(
     all_tests,
-    arg_map=lambda s: AnotherService if s == 'another_service' else None
+    dependencies=lambda s: AnotherService if s == 'another_service' else None
 )
-def test_arg_map_func(container, instance: MyService):
+def test_dependencies_func(container, instance: MyService):
     assert instance.service is container[Service]
     assert instance.another_service is container[AnotherService]
 
 
 @parametrize_injection(all_tests,
-                       arg_map=dict(service=AnotherService))
-def test_arg_map_dict_override(container, instance: MyService):
+                       dependencies=dict(service=AnotherService))
+def test_dependencies_dict_override(container, instance: MyService):
     assert instance.service is container[AnotherService]
     assert instance.another_service is None
 
 
 @parametrize_injection(all_tests,
-                       arg_map=dict(another_service=AnotherService))
-def test_arg_map_dict(container, instance: MyService):
+                       dependencies=dict(another_service=AnotherService))
+def test_dependencies_dict(container, instance: MyService):
     assert instance.service is container[Service]
     assert instance.another_service is container[AnotherService]
 
 
-@parametrize_injection(class_one_inj_tests, arg_map=(None, AnotherService))
-def test_class_arg_map_tuple_override(container, instance: MyService):
+@parametrize_injection(function_tests, dependencies=(AnotherService,))
+def test_function_dependencies_tuple_override(container, instance: MyService):
     assert instance.service is container[AnotherService]
     assert instance.another_service is None
 
 
-@parametrize_injection(function_tests, arg_map=(AnotherService,))
-def test_function_arg_map_tuple_override(container, instance: MyService):
-    assert instance.service is container[AnotherService]
-    assert instance.another_service is None
-
-
-@parametrize_injection(class_one_inj_tests, arg_map=(None, None, AnotherService))
-def test_class_arg_map_tuple(container, instance: MyService):
-    assert instance.service is container[Service]
-    assert instance.another_service is container[AnotherService]
-
-
-@parametrize_injection(function_tests, arg_map=(None, AnotherService))
-def test_function_arg_map_tuple(container, instance: MyService):
+@parametrize_injection(function_tests, dependencies=(None, AnotherService))
+def test_function_dependencies_tuple(container, instance: MyService):
     assert instance.service is container[Service]
     assert instance.another_service is container[AnotherService]
 

@@ -28,7 +28,7 @@ class InjectionBlueprint(SlotsReprMixin):
         self.injections = injections
 
 
-class InjectedCallableWrapper:
+class InjectedWrapper:
     """
     Wrapper which injects all the dependencies not supplied in the passed
     arguments. An InjectionBlueprint is used to store the mapping of the
@@ -55,19 +55,22 @@ class InjectedCallableWrapper:
         return self.__wrapped__(*args, **kwargs)
 
     def __get__(self, instance, owner):
-        skip_self = instance is not None
-        func = self.__wrapped__.__get__(instance, owner)
-        return InjectedBoundCallableWrapper(self.__container, self.__blueprint,
-                                            func, skip_self=skip_self)
+        return InjectedBoundWrapper(
+            self.__container,
+            self.__blueprint,
+            self.__wrapped__.__get__(instance, owner),
+            instance is not None
+        )
 
 
-class InjectedBoundCallableWrapper(InjectedCallableWrapper):
+class InjectedBoundWrapper(InjectedWrapper):
     """
-    Wrapper necessary to correctly handle methods.
+    Behaves like Python bound methods. Unsure whether this is really necessary
+    or not.
     """
 
     def __get__(self, instance, owner):
-        return self
+        return self  # pragma: no cover
 
 
 def _inject_kwargs(container: DependencyContainer,

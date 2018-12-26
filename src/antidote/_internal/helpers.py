@@ -1,8 +1,8 @@
 import inspect
 from typing import (get_type_hints)
 
-from ..injection.inject import inject
-from ..injection.wiring import wire
+from ..core import inject
+from ..helpers.wiring import wire
 
 
 def prepare_class(cls, auto_wire, **inject_kwargs):

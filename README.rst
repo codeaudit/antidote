@@ -104,7 +104,7 @@ with a custom class for easier usage. Antidote can do all the wiring for you:
     # Declare a factory which should be called to instantiate Database.
     # Variables names are used here for injection. A dictionary mapping
     # arguments name to their dependency could also have been used.
-    @antidote.factory(arg_map=('conf:db.host', 'conf:db.port',
+    @antidote.factory(dependencies=('conf:db.host', 'conf:db.port',
                                'conf:db.user', 'conf:db.password'))
     def database_factory(db_host, db_port, db_user,
                          db_password) -> Database:

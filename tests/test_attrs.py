@@ -1,6 +1,6 @@
 import pytest
 
-from antidote.helpers import attrib, new_container
+from antidote import attrib, new_container
 
 
 class Service:

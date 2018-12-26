@@ -46,7 +46,7 @@ cdef class Build:
                and self.kwargs == self.kwargs
 
 cdef class FactoryProvider(DependencyProvider):
-    bound_types = (Build,)
+    bound_dependency_types = (Build,)
 
     def __init__(self):
         self._factories = dict()  # type: Dict[Any, Factory]
@@ -68,9 +68,9 @@ cdef class FactoryProvider(DependencyProvider):
             if ptr != NULL:
                 factory = <Factory> ptr
                 if factory.takes_dependency:
-                    instance = factory(build.wrapped, *build.args, **build.kwargs)
+                    instance = factory.func(build.wrapped, *build.args, **build.kwargs)
                 else:
-                    instance = factory(*build.args, **build.kwargs)
+                    instance = factory.func(*build.args, **build.kwargs)
             else:
                 return
         else:
@@ -78,9 +78,9 @@ cdef class FactoryProvider(DependencyProvider):
             if ptr != NULL:
                 factory = <Factory> ptr
                 if factory.takes_dependency:
-                    instance = factory(dependency)
+                    instance = factory.func(dependency)
                 else:
-                    instance = factory()
+                    instance = factory.func()
             else:
                 return
 
@@ -114,7 +114,7 @@ cdef class Factory:
         readonly bint singleton
         readonly bint takes_dependency
 
-    def __init__(self, func: Callable, singleton: bool, takes_dependency: bool):
+    def __init__(self, func: Callable, bint singleton, bint takes_dependency):
         self.func = func
         self.singleton = singleton
         self.takes_dependency = takes_dependency
@@ -126,6 +126,3 @@ cdef class Factory:
             self.singleton,
             self.takes_dependency
         )
-
-    def __call__(self, *args, **kwargs):
-        return self.func(*args, **kwargs)

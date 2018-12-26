@@ -1,13 +1,11 @@
-from typing import Optional
-
 from ..core import DependencyContainer
 
 
 def get_global_container() -> DependencyContainer:
     import antidote
-    return antidote.global_container
+    return antidote.world
 
 
 def set_global_container(container: DependencyContainer):
     import antidote
-    antidote.global_container = container
+    antidote.world = container

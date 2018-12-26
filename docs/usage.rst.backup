@@ -310,7 +310,7 @@ specified:
 
   .. doctest:: usage
 
-      >>> @antidote.inject(arg_map=('conf:date.year', HelloWorld))
+      >>> @antidote.inject(dependencies=('conf:date.year', HelloWorld))
       ... def which_args(year, my_hello_world):
       ...     my_hello_world.say_hi()
       ...     print("Year: {}".format(year))
@@ -318,7 +318,7 @@ specified:
       >>> which_args()
       Hi world !
       Year: 2017
-      >>> @antidote.inject(arg_map=dict(year='conf:date.year'))
+      >>> @antidote.inject(dependencies=dict(year='conf:date.year'))
       ... def which_args(year):
       ...     print("Year: {}".format(year))
       ...
@@ -332,7 +332,7 @@ them:
 .. doctest:: usage
 
 
-    >>> @antidote.inject(arg_map=['conf:date.year'], use_names=True)
+    >>> @antidote.inject(dependencies=['conf:date.year'], use_names=True)
     ... def whoami(year, name):
     ...     print("{}: {}".format(year, name))
     ...

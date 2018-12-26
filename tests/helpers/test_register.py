@@ -1,7 +1,7 @@
 import pytest
 
-from antidote import (DependencyContainer, FactoryProvider, TagProvider)
-from antidote.helpers import register
+from antidote import DependencyContainer, register
+from antidote.providers import FactoryProvider, TagProvider
 
 
 @pytest.fixture()

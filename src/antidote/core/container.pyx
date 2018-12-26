@@ -25,7 +25,7 @@ cdef class DependencyInstance:
                                                       self.singleton)
 
 cdef class DependencyProvider:
-    bound_types = ()  # type: Tuple[type]
+    bound_dependency_types = ()  # type: Tuple[type]
 
     cpdef DependencyInstance provide(self, dependency):
         raise NotImplementedError()
@@ -68,7 +68,7 @@ cdef class DependencyContainer:
         if not isinstance(provider, DependencyProvider):
             raise ValueError("Not a provider")
 
-        for bound_type in provider.bound_types:
+        for bound_type in provider.bound_dependency_types:
             if bound_type in self._type_to_provider:
                 raise RuntimeError(
                     "Cannot bind {!r} to provider, already bound to {!r}".format(
@@ -76,7 +76,7 @@ cdef class DependencyContainer:
                     )
                 )
 
-        for bound_type in provider.bound_types:
+        for bound_type in provider.bound_dependency_types:
             self._type_to_provider[bound_type] = provider
 
         self._providers.append(provider)

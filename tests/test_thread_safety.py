@@ -4,8 +4,7 @@ import time
 
 import pytest
 
-from antidote import Tagged, TaggedDependencies
-from antidote.helpers import factory, new_container
+from antidote import Tagged, TaggedDependencies, factory, new_container
 
 
 class Service:
@@ -47,11 +46,11 @@ def test_container_instantiation_safety(container):
     n_threads = 10
 
     factory(make_delayed_factory(Service),
-            dependency=Service,
+            builds=(Service,),
             singleton=True,
             container=container)
     factory(make_delayed_factory(AnotherService),
-            dependency=AnotherService,
+            builds=(AnotherService,),
             singleton=False,
             container=container)
 
@@ -73,7 +72,7 @@ def test_tagged_dependencies_instantiation_safety(container):
 
     for i in range(n_dependencies):
         factory(make_delayed_factory(object),
-                dependency=i + 1,
+                builds=(i + 1,),
                 singleton=False,
                 tags=['test'],
                 container=container)

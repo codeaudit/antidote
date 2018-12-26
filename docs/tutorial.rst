@@ -291,7 +291,7 @@ is for :
 
 .. testcode:: tutorial_conf
 
-    @inject(arg_map='conf:{name}')
+    @inject(dependencies='conf:{name}')
     def am_i_in_prod_v3(env: str):
         return env == 'PROD'
 
@@ -304,7 +304,7 @@ Here a template string was used, which is syntactic sugar for :
 
 .. testcode:: tutorial_conf
 
-    @inject(arg_map=lambda name: 'conf:{}'.format(name))
+    @inject(dependencies=lambda name: 'conf:{}'.format(name))
     def am_i_in_prod_v4(env: str):
         return env == 'PROD'
 
@@ -314,10 +314,10 @@ Here a template string was used, which is syntactic sugar for :
 
     .. doctest:: tutorial_conf
 
-        >>> @inject(arg_map=['conf:env'])
+        >>> @inject(dependencies=['conf:env'])
         ... def am_i_in_prod3(env: str):
         ...     return env == 'PROD'
-        >>> @inject(arg_map=dict(env='conf:env'))
+        >>> @inject(dependencies=dict(env='conf:env'))
         ... def am_i_in_prod3(env: str):
         ...     return env == 'PROD'
 
@@ -345,7 +345,7 @@ resource:
     def env_conf(name):
         return config[name.lower()]
 
-    @inject(arg_map='env_conf:{name}')
+    @inject(dependencies='env_conf:{name}')
     def am_i_in_prod_v5(env: str):
         return env == 'PROD'
 

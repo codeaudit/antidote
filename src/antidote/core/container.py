@@ -33,7 +33,7 @@ class DependencyProvider(ABC):
     This should be used whenever one needs to introduce a new kind of dependency,
     or control how certain dependencies are instantiated.
     """
-    bound_types = cast(Tuple[type], ())  # type: Tuple[type]
+    bound_dependency_types = cast(Tuple[type], ())  # type: Tuple[type]
 
     @abstractmethod
     def provide(self, dependency: Any) -> Optional[DependencyInstance]:
@@ -110,7 +110,7 @@ class DependencyContainer:
         if not isinstance(provider, DependencyProvider):
             raise ValueError("Not a provider")
 
-        for bound_type in provider.bound_types:
+        for bound_type in provider.bound_dependency_types:
             if bound_type in self._type_to_provider:
                 raise RuntimeError(
                     "Cannot bind {!r} to provider, already bound to {!r}".format(
@@ -118,7 +118,7 @@ class DependencyContainer:
                     )
                 )
 
-        for bound_type in provider.bound_types:
+        for bound_type in provider.bound_dependency_types:
             self._type_to_provider[bound_type] = provider
 
         self._providers.append(provider)

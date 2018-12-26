@@ -1,13 +1,10 @@
 import pkg_resources as _pkg_resources
 
-from .core import DependencyContainer, DependencyInstance, DependencyProvider
-from .exceptions import (AntidoteError, DependencyCycleError,
-                         DependencyInstantiationError, DependencyNotFoundError,
-                         DependencyNotProvidableError, DuplicateDependencyError)
-from .helpers import (attrib, context, factory, new_container, provider, register,
-                      resource)
-from .injection import inject, wire
-from .providers import FactoryProvider, ResourceProvider, TagProvider
+from .core import DependencyContainer, DependencyInstance, DependencyProvider, inject
+from .helpers.attrs import attrib
+from .helpers.container import context, new_container
+from .helpers.registration import factory, provider, register, resource
+from .helpers.wiring import wire
 from .providers.factory import Build
 from .providers.tag import Tag, Tagged, TaggedDependencies
 
@@ -19,28 +16,21 @@ except _pkg_resources.DistributionNotFound:  # pragma: no cover
 
 __all__ = [
     'Build',
-    'inject',
-    'DependencyInstance',
     'DependencyContainer',
-    'AntidoteError',
-    'DependencyNotProvidableError',
-    'DependencyNotFoundError',
-    'DuplicateDependencyError',
-    'DependencyCycleError',
-    'DependencyInstantiationError',
-    'Dependency',
-    'FactoryProvider',
-    'ResourceProvider',
+    'DependencyInstance',
+    'DependencyProvider',
     'Tag',
     'Tagged',
     'TaggedDependencies',
-    'TagProvider',
-    'register',
-    'factory',
-    'resource',
-    'provider',
     'attrib',
-    'context'
+    'context',
+    'factory',
+    'inject',
+    'new_container',
+    'provider',
+    'register',
+    'resource',
+    'wire'
 ]
 
-global_container = new_container()
+world = new_container()

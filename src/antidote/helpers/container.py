@@ -16,7 +16,8 @@ def new_container() -> DependencyContainer:
 
 
 @contextlib.contextmanager
-def context(dependencies: Mapping = None,
+def context(*,
+            dependencies: Mapping = None,
             include: Iterable = None,
             exclude: Iterable = None,
             missing: Iterable = None):

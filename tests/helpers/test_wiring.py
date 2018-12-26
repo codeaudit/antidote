@@ -1,6 +1,6 @@
 import pytest
 
-from antidote.injection import wire
+from antidote import wire
 
 
 def test_invalid_value():

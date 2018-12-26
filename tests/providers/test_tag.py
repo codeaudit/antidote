@@ -1,10 +1,8 @@
 import pytest
-from pretend import stub
 
 from antidote.core import DependencyContainer, DependencyInstance
 from antidote.exceptions import DependencyNotFoundError, DuplicateTagError
 from antidote.providers.tag import Tag, TagProvider, Tagged, TaggedDependencies
-from antidote.providers.tag.provider import TaggedDependency
 
 
 def test_repr():
@@ -55,7 +53,7 @@ def test_provide_tags():
     result = provider.provide(Tagged('tag1'))
     assert isinstance(result, DependencyInstance)
     assert result.singleton is False
-
+    #
     tagged_dependencies = result.instance  # type: TaggedDependencies
     assert 1 == len(tagged_dependencies)
     assert ['test'] == list(tagged_dependencies.dependencies())
@@ -79,15 +77,13 @@ def test_provide_tags():
 def test_tagged_dependencies():
     tag1 = Tag('tag1')
     tag2 = Tag('tag2', dummy=True)
+    c = DependencyContainer()
+    c.update_singletons({'d': 'test', 'd2': 'test2'})
+
     t = TaggedDependencies(
-        container=stub(provide=lambda d: {'d': 'test', 'd2': 'test2'}[d],
-                       SENTINEL=object()),
-        tagged_dependencies=[
-            TaggedDependency(dependency='d',
-                             tag=tag1),
-            TaggedDependency(dependency='d2',
-                             tag=tag2),
-        ]
+        container=c,
+        dependencies=['d', 'd2'],
+        tags=[tag1, tag2]
     )
 
     assert {tag1, tag2} == set(t.tags())
@@ -97,15 +93,13 @@ def test_tagged_dependencies():
 
 
 def test_tagged_dependencies_invalid_dependency():
-    sentinel = object()
     tag = Tag('tag1')
+    c = DependencyContainer()
+
     t = TaggedDependencies(
-        container=stub(provide=lambda _: sentinel,
-                       SENTINEL=sentinel),
-        tagged_dependencies=[
-            TaggedDependency(dependency='d',
-                             tag=tag),
-        ]
+        container=c,
+        dependencies=['d'],
+        tags=[tag]
     )
     assert ['d'] == list(t.dependencies())
     assert [tag] == list(t.tags())

@@ -1,7 +1,6 @@
 import pytest
 
-from antidote import Tag, Tagged
-from antidote.helpers import factory, resource, new_container, register
+from antidote import Tag, Tagged, factory, new_container, register, resource
 
 
 class Service:

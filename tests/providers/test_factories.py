@@ -1,7 +1,7 @@
 import pytest
 
-from antidote import DuplicateDependencyError
-from antidote.providers.factory import (Build, FactoryProvider)
+from antidote.exceptions import DuplicateDependencyError
+from antidote.providers.factory import Build, FactoryProvider
 
 
 class Service:

@@ -1,10 +1,8 @@
 import pytest
 
-from antidote import (DependencyNotProvidableError, DependencyInstance,
-                      DependencyProvider)
-from antidote.helpers import new_container, provider
-from antidote.providers import FactoryProvider, ResourceProvider
-from antidote.providers.tag import TagProvider
+from antidote import DependencyInstance, DependencyProvider, new_container, provider
+from antidote.exceptions import DependencyNotProvidableError
+from antidote.providers import FactoryProvider, ResourceProvider, TagProvider
 
 
 @pytest.fixture()

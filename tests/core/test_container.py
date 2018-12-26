@@ -1,8 +1,10 @@
+from typing import Any
+
 import pytest
 
-from antidote import (DependencyContainer, DependencyCycleError,
-                      DependencyInstantiationError, DependencyNotFoundError,
-                      DependencyInstance)
+from antidote import DependencyContainer, DependencyInstance, DependencyProvider
+from antidote.exceptions import (DependencyCycleError, DependencyInstantiationError,
+                                 DependencyNotFoundError)
 from .utils import DummyFactoryProvider, DummyProvider
 
 
@@ -103,7 +105,7 @@ def test_singleton(container: DependencyContainer):
     assert another_service is not container[AnotherService]
 
 
-def test_cycle_error(container: DependencyContainer):
+def test_dependency_cycle_error(container: DependencyContainer):
     container.register_provider(DummyFactoryProvider({
         Service: lambda: Service(container[AnotherService]),
         AnotherService: lambda: AnotherService(container[YetAnotherService]),
@@ -132,3 +134,52 @@ def test_repr_str(container: DependencyContainer):
 def test_invalid_provider(container: DependencyContainer):
     with pytest.raises(ValueError):
         container.register_provider(object())
+
+
+def test_bound_dependency_types():
+    class CustomDependency:
+        pass
+
+    class DummyProvider1(DependencyProvider):
+        bound_dependency_types = (CustomDependency,)
+
+        def provide(self, dependency: Any) -> DependencyInstance:
+            return DependencyInstance(self)
+
+    class DummyProvider2(DependencyProvider):
+        def provide(self, dependency: Any) -> DependencyInstance:
+            raise Exception()
+
+    container = DependencyContainer()
+    container.register_provider(DummyProvider2())
+    container.register_provider(DummyProvider1())
+    assert isinstance(container[CustomDependency()], DummyProvider1)
+
+    container = DependencyContainer()
+    container.register_provider(DummyProvider1())
+    container.register_provider(DummyProvider2())
+    assert isinstance(container[CustomDependency()], DummyProvider1)
+
+
+def test_bound_dependency_types_conflict():
+    class CustomDependency:
+        pass
+
+    class DummyProvider1(DependencyProvider):
+        bound_dependency_types = (CustomDependency,)
+
+        def provide(self, dependency: Any) -> DependencyInstance:
+            return DependencyInstance(self)
+
+    class DummyProvider2(DependencyProvider):
+        bound_dependency_types = (CustomDependency,)
+
+        def provide(self, dependency: Any) -> DependencyInstance:
+            return DependencyInstance(self)
+
+    container = DependencyContainer()
+    container.register_provider(DummyProvider1())
+
+    with pytest.raises(RuntimeError):
+        container.register_provider(DummyProvider2())
+
