@@ -39,11 +39,11 @@ class InjectedWrapper:
                  container: DependencyContainer,
                  blueprint: InjectionBlueprint,
                  wrapped: Callable,
-                 skip_self: bool = False):
+                 skip_first: bool = False):
         self.__wrapped__ = wrapped
         self.__container = container
         self.__blueprint = blueprint
-        self.__injection_offset = 1 if skip_self else 0
+        self.__injection_offset = 1 if skip_first else 0
 
     def __call__(self, *args, **kwargs):
         kwargs = _inject_kwargs(
@@ -59,7 +59,8 @@ class InjectedWrapper:
             self.__container,
             self.__blueprint,
             self.__wrapped__.__get__(instance, owner),
-            instance is not None
+            isinstance(self.__wrapped__, classmethod)
+            or (not isinstance(self.__wrapped__, staticmethod) and instance is not None)
         )
 
 

@@ -1,7 +1,6 @@
 import pytest
 
-from antidote import DependencyContainer
-from antidote.core.proxy import ProxyContainer
+from antidote.core import DependencyContainer, ProxyContainer
 from antidote.exceptions import DependencyNotFoundError
 from .utils import DummyProvider
 

@@ -2,7 +2,7 @@ from typing import Any
 
 import pytest
 
-from antidote import DependencyContainer, DependencyInstance, DependencyProvider
+from antidote.core import DependencyContainer, DependencyInstance, DependencyProvider
 from antidote.exceptions import (DependencyCycleError, DependencyInstantiationError,
                                  DependencyNotFoundError)
 from .utils import DummyFactoryProvider, DummyProvider
@@ -104,6 +104,8 @@ def test_singleton(container: DependencyContainer):
     another_service = container[AnotherService]
     assert another_service is not container[AnotherService]
 
+    assert {Service: service, DependencyContainer: container} == container.singletons
+
 
 def test_dependency_cycle_error(container: DependencyContainer):
     container.register_provider(DummyFactoryProvider({
@@ -182,4 +184,3 @@ def test_bound_dependency_types_conflict():
 
     with pytest.raises(RuntimeError):
         container.register_provider(DummyProvider2())
-

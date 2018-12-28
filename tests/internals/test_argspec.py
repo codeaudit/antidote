@@ -188,3 +188,21 @@ def test_arguments_builder(func, expected: Arguments):
 def test_broken_type_hints_cpy353(monkeypatch):
     monkeypatch.setattr('typing.get_type_hints', raiser(Exception))
     _ = Arguments.from_callable(k)
+
+
+def test_magic_methods_arguments():
+    arguments = tuple([
+        Argument('x', False, int),
+        Argument('y', True, str),
+        Argument('z', False, float),
+    ])
+    args = Arguments(
+        arguments=arguments,
+        has_var_keyword=True,
+        has_var_positional=True
+    )
+
+    assert 'x' in args
+    assert 'unknown' not in args
+    assert 3 == len(args)
+    assert arguments == tuple(args)

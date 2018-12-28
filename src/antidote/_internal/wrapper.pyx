@@ -36,7 +36,7 @@ cdef class InjectionBlueprint:
     def __init__(self, tuple injections):
         self.injections = injections
 
-cdef class InjectedCallableWrapper:
+cdef class InjectedWrapper:
     cdef:
         # public attributes as those are going to be overwritten by
         # functools.wraps()
@@ -51,14 +51,14 @@ cdef class InjectedCallableWrapper:
         int __injection_offset
 
     def __cinit__(self,
-                 DependencyContainer container,
-                 InjectionBlueprint blueprint,
-                 object wrapped,
-                 bint skip_self = False):
+                  DependencyContainer container,
+                  InjectionBlueprint blueprint,
+                  object wrapped,
+                  bint skip_first = False):
         self.__wrapped__ = wrapped
         self.__container = container
         self.__blueprint = blueprint
-        self.__injection_offset = 1 if skip_self else 0
+        self.__injection_offset = 1 if skip_first else 0
 
     def __call__(self, *args, **kwargs):
         kwargs = _inject_kwargs(
@@ -70,15 +70,16 @@ cdef class InjectedCallableWrapper:
         return self.__wrapped__(*args, **kwargs)
 
     def __get__(self, instance, owner):
-        return InjectedBoundCallableWrapper.__new__(
-            InjectedBoundCallableWrapper,
+        return InjectedBoundWrapper.__new__(
+            InjectedBoundWrapper,
             self.__container,
             self.__blueprint,
             self.__wrapped__.__get__(instance, owner),
-            instance is not None
+            isinstance(self.__wrapped__, classmethod)
+            or (not isinstance(self.__wrapped__, staticmethod) and instance is not None)
         )
 
-cdef class InjectedBoundCallableWrapper(InjectedCallableWrapper):
+cdef class InjectedBoundWrapper(InjectedWrapper):
     def __get__(self, instance, owner):
         return self
 

@@ -2,13 +2,14 @@ import collections.abc as c_abc
 from typing import Any, Iterable, Mapping, Set
 
 from .container import DependencyContainer
-from ..exceptions import DependencyNotFoundError
+from .exceptions import DependencyNotFoundError
 
 
 class ProxyContainer(DependencyContainer):
     """
     Proxy core which should only be used for mocking an testing.
     """
+
     def __init__(self,
                  container: DependencyContainer,
                  dependencies: Mapping = None,
@@ -26,23 +27,25 @@ class ProxyContainer(DependencyContainer):
         else:
             raise ValueError("missing must be either an iterable or None")
 
-        existing_singletons = container.singletons
+        new_singletons = {}
         if include is None:
-            self.update_singletons(existing_singletons)
+            new_singletons = container.singletons
         elif isinstance(include, c_abc.Iterable):
+            existing_singletons = container.singletons
             for dependency in include:
-                self[dependency] = existing_singletons[dependency]
+                new_singletons[dependency] = existing_singletons[dependency]
         else:
             raise ValueError("include must be either an iterable or None")
 
         if isinstance(exclude, c_abc.Iterable):
             for dependency in exclude:
                 try:
-                    del self[dependency]
+                    del new_singletons[dependency]
                 except KeyError:
                     pass
         elif exclude is not None:
             raise ValueError("exclude must be either an iterable or None")
+        self.update_singletons(new_singletons)
 
         if isinstance(dependencies, c_abc.Mapping):
             self.update_singletons(dependencies)
@@ -54,4 +57,3 @@ class ProxyContainer(DependencyContainer):
             raise DependencyNotFoundError(dependency)
 
         return super().provide(dependency)
-

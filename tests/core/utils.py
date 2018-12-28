@@ -27,23 +27,3 @@ class DummyFactoryProvider(DependencyProvider):
                                       singleton=self.singleton)
         except KeyError:
             pass
-
-
-class Service:
-    def __init__(self, *args):
-        pass
-
-
-class AnotherService:
-    def __init__(self, *args):
-        pass
-
-
-class YetAnotherService:
-    def __init__(self, *args):
-        pass
-
-
-class ServiceWithNonMetDependency:
-    def __init__(self, dependency):
-        pass

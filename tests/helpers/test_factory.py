@@ -1,6 +1,7 @@
 import pytest
 
-from antidote import DependencyContainer, factory
+from antidote import factory
+from antidote.core import DependencyContainer
 from antidote.providers import FactoryProvider, TagProvider
 
 

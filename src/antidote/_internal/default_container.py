@@ -1,11 +1,11 @@
 from ..core import DependencyContainer
 
 
-def get_global_container() -> DependencyContainer:
+def get_default_container() -> DependencyContainer:
     import antidote
     return antidote.world
 
 
-def set_global_container(container: DependencyContainer):
+def set_default_container(container: DependencyContainer):
     import antidote
     antidote.world = container

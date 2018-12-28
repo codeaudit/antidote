@@ -87,11 +87,6 @@ def test_multi_tags(container, dependency):
     assert container[dependency] is tagged[0]
 
 
-@parametrize_registration(singleton_tests, singleton=True)
+@parametrize_registration(singleton_tests)
 def test_singleton(container, dependency):
     assert container[dependency] is container[dependency]
-
-
-@parametrize_registration(singleton_tests, singleton=False)
-def test_not_singleton(container, dependency):
-    assert container[dependency] is not container[dependency]

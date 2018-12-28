@@ -1,16 +1,12 @@
 import inspect
 from typing import Any, Callable, Iterable, Union, cast, Tuple, List
 
-from .._internal.global_container import get_global_container
+from .._internal.default_container import get_default_container
 from .._internal.helpers import prepare_callable, prepare_class
 from ..core import DEPENDENCIES_TYPE, DependencyContainer, DependencyProvider, inject
 from ..providers.factory import FactoryProvider
 from ..providers.resource import ResourceProvider
 from ..providers.tag import Tag, TagProvider
-
-
-def include():
-    pass
 
 
 def register(class_: type = None,
@@ -65,7 +61,7 @@ def register(class_: type = None,
         The class or the class decorator.
 
     """
-    container = container or get_global_container()
+    container = container or get_default_container()
 
     def register_class(cls):
         nonlocal auto_wire, factory
@@ -172,7 +168,7 @@ def factory(func: Callable = None,
         object: The dependency_provider
 
     """
-    container = container or get_global_container()
+    container = container or get_default_container()
 
     if builds is not None and not isinstance(builds, (tuple, list)):
         pass
@@ -250,7 +246,7 @@ def provider(class_: type = None,
     Returns:
         the providers's class or the class decorator.
     """
-    container = container or get_global_container()
+    container = container or get_default_container()
 
     def register_provider(cls):
         if not issubclass(cls, DependencyProvider):
@@ -272,9 +268,7 @@ def provider(class_: type = None,
 
 def resource(func: Callable[[str], Any] = None,
              *,
-             singleton: bool = True,
              namespace: str = None,
-             omit_namespace: bool = None,
              priority: float = 0,
              auto_wire: Union[bool, Iterable[str]] = True,
              dependencies: DEPENDENCIES_TYPE = None,
@@ -289,17 +283,12 @@ def resource(func: Callable[[str], Any] = None,
         func: Function used to retrieve a requested dependency which will
             be given as an argument. If the dependency cannot be provided,
             it should raise a :py:exc:`LookupError`.
-        singleton: If True, `func` will only be called once. If not it is
-            called at each injection.
         namespace: Used to identity which getter should be used with a
             dependency. It should only contain characters in
             :code:`[a-zA-Z0-9_]`.
         priority: Used to determine which getter should be called first when
             they share the same namespace. Highest priority wins. Defaults to
             0.
-        omit_namespace: Whether or not the namespace should be kept when
-            passing the dependency to the :code:`resource_getter`. Defaults
-            to True.
         auto_wire: If True, the dependencies of :code:`__init__()` are
             injected. An iterable of method names which require dependency
             injection may also be specified.
@@ -324,11 +313,10 @@ def resource(func: Callable[[str], Any] = None,
     Returns:
         getter callable or decorator.
     """
-    container = container or get_global_container()
+    container = container or get_default_container()
 
     def register_getter(obj):
-        nonlocal namespace, omit_namespace
-        omit_namespace = omit_namespace if omit_namespace is not None else True
+        nonlocal namespace
 
         if namespace is None:
             namespace = obj.__name__
@@ -344,9 +332,7 @@ def resource(func: Callable[[str], Any] = None,
                                  container.providers[ResourceProvider])
         resource_provider.register(resource_getter=getter_,
                                    namespace=namespace,
-                                   omit_namespace=omit_namespace,
-                                   priority=priority,
-                                   singleton=singleton)
+                                   priority=priority)
 
         return obj
 

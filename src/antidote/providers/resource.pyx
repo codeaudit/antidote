@@ -9,7 +9,7 @@ from cpython.dict cimport PyDict_GetItem
 from cpython.ref cimport PyObject
 
 from antidote.core.container cimport DependencyInstance, DependencyProvider
-from ..exceptions import GetterPriorityConflict
+from ..exceptions import ResourcePriorityConflict
 # @formatter:on
 
 
@@ -76,7 +76,7 @@ cdef class ResourceProvider(DependencyProvider):
 
         for g in getters:
             if g.priority == priority:
-                raise GetterPriorityConflict(repr(g), repr(resource_getter))
+                raise ResourcePriorityConflict(repr(g), repr(resource_getter))
 
         # Highest priority should be first
         idx = bisect.bisect([-g.priority for g in getters], -priority)

@@ -1,7 +1,7 @@
 from typing import Any, get_type_hints
 
 from ..core import DependencyContainer
-from .._internal.global_container import get_global_container
+from .._internal.default_container import get_default_container
 
 
 def attrib(dependency: Any = None,
@@ -23,7 +23,7 @@ def attrib(dependency: Any = None,
         object: attr.Attribute with a attr.Factory.
 
     """
-    container = container or get_global_container()
+    container = container or get_default_container()
 
     try:
         import attr

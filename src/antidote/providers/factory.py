@@ -12,11 +12,11 @@ class Build(SlotsReprMixin):
 
     .. doctest::
 
-        >>> from antidote import Build, factory, global_container
+        >>> from antidote import Build, factory, world
         >>> @factory(dependency='test')
         ... def f(name):
         ...     return {'name': name}
-        >>> global_container[Build('test', name='me')]
+        >>> world[Build('test', name='me')]
         {'name': 'me'}
 
     With no arguments, that is to say :code:`Build(x)`, it is equivalent to

@@ -12,7 +12,7 @@ class Argument:
 
 class Arguments:
     @classmethod
-    def from_callable(cls, func: Callable, skip_first=False) -> 'Arguments':
+    def from_callable(cls, func: Callable) -> 'Arguments':
         arguments = []
         has_var_positional = False
         has_var_keyword = False
@@ -24,10 +24,6 @@ class Arguments:
             type_hints = {}
 
         for name, parameter in inspect.signature(func).parameters.items():
-            if skip_first:
-                skip_first = False
-                continue
-
             if parameter.kind is parameter.VAR_POSITIONAL:
                 has_var_positional = True
             elif parameter.kind is parameter.VAR_KEYWORD:

@@ -3,7 +3,8 @@ import textwrap
 
 import pytest
 
-from antidote import DependencyContainer, resource
+from antidote import resource
+from antidote.core import DependencyContainer
 from antidote.providers import ResourceProvider
 
 
@@ -57,12 +58,3 @@ def test_namespace(mk_getter, container):
 
     getter_()(mk_getter('conf'))
     assert data['test'] == container['conf:test']
-
-    getter_(omit_namespace=False)(mk_getter('http'))
-    assert data['http:test'] == container['http:test']
-
-    getter_(namespace='conf2', omit_namespace=True)(mk_getter('conf'))
-    assert data['test3'] == container['conf2:test3']
-
-    getter_(namespace='conf3', omit_namespace=False)(mk_getter('conf'))
-    assert data['conf3:test'] == container['conf3:test']

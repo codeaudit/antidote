@@ -4,7 +4,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from .._internal.utils import SlotsReprMixin
 from ..core import DependencyInstance, DependencyProvider
-from ..exceptions import GetterPriorityConflict
+from ..exceptions import ResourcePriorityConflict
 
 
 class ResourceProvider(DependencyProvider):
@@ -12,6 +12,7 @@ class ResourceProvider(DependencyProvider):
     Provider managing resources, such as configuration, remote static content,
     etc...
     """
+
     def __init__(self):
         self._priority_sorted_getters_by_namespace = dict()  # type: Dict[str, List[ResourceGetter]]  # noqa
 
@@ -34,23 +35,18 @@ class ResourceProvider(DependencyProvider):
             if getters is not None:
                 for getter in getters:
                     try:
-                        if getter.omit_namespace:
-                            instance = getter.func(resource_name)
-                        else:
-                            instance = getter.func(dependency)
+                        instance = getter.func(resource_name)
                     except LookupError:
                         pass
                     else:
-                        return DependencyInstance(instance, singleton=getter.singleton)
+                        return DependencyInstance(instance, singleton=True)
 
         return None
 
     def register(self,
                  resource_getter: Callable[[str], Any],
                  namespace: str,
-                 priority: float = 0,
-                 omit_namespace: bool = True,
-                 singleton: bool = True):
+                 priority: float = 0):
         """
         Register a function used to retrieve a certain kind of resource.
         Resources must each have their own namespace which must be specified
@@ -66,11 +62,6 @@ class ResourceProvider(DependencyProvider):
             priority: Used to determine which getter should be called first
                 when they share the same namespace. Highest priority wins.
                 Defaults to 0.
-            omit_namespace: Whether or not the namespace should be kept when
-                passing the dependency to the :code:`resource_getter`.
-                Defaults to True.
-            singleton: Whether the dependency should be mark as singleton or
-                not for the :py:class:`~..core.DependencyContainer`.
 
         """
         if not isinstance(namespace, str):
@@ -89,15 +80,13 @@ class ResourceProvider(DependencyProvider):
 
         for g in getters:
             if g.priority == priority:
-                raise GetterPriorityConflict(repr(g), repr(resource_getter))
+                raise ResourcePriorityConflict(repr(g), repr(resource_getter))
 
         # Highest priority should be first
         idx = bisect.bisect([-g.priority for g in getters], -priority)
         getters.insert(idx, ResourceGetter(func=resource_getter,
                                            namespace=namespace,
-                                           priority=priority,
-                                           omit_namespace=omit_namespace,
-                                           singleton=singleton))
+                                           priority=priority))
 
         self._priority_sorted_getters_by_namespace[namespace] = getters
 
@@ -109,17 +98,12 @@ class ResourceGetter(SlotsReprMixin):
     Only used by the GetterProvider to store information on how a getter has to
     be used.
     """
-    __slots__ = ('func', 'omit_namespace', 'namespace_', 'priority',
-                 'singleton')
+    __slots__ = ('func', 'namespace_', 'priority')
 
     def __init__(self,
                  func: Callable[[str], Any],
                  namespace: str,
-                 priority: float,
-                 omit_namespace: bool,
-                 singleton: bool):
+                 priority: float):
         self.func = func
-        self.omit_namespace = omit_namespace
         self.namespace_ = namespace
-        self.singleton = singleton
         self.priority = priority

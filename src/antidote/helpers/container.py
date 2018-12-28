@@ -1,7 +1,7 @@
 import contextlib
 from typing import Iterable, Mapping
 
-from .._internal.global_container import get_global_container, set_global_container
+from .._internal.default_container import get_default_container, set_default_container
 from ..core import DependencyContainer, ProxyContainer
 from ..providers import FactoryProvider, ResourceProvider, TagProvider
 
@@ -47,15 +47,15 @@ def context(*,
             provider could instantiate them.
 
     """
-    original_container = get_global_container()
+    original_container = get_default_container()
     container = ProxyContainer(container=original_container or new_container(),
                                dependencies=dependencies,
                                include=include,
                                exclude=exclude,
                                missing=missing)
 
-    set_global_container(container)
+    set_default_container(container)
     try:
         yield
     finally:
-        set_global_container(original_container)
+        set_default_container(original_container)

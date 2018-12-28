@@ -1,7 +1,7 @@
 import pytest
 
-from antidote import DependencyInstance, DependencyProvider, new_container, provider
-from antidote.exceptions import DependencyNotProvidableError
+from antidote import new_container, provider
+from antidote.core import DependencyInstance, DependencyProvider
 from antidote.providers import FactoryProvider, ResourceProvider, TagProvider
 
 
@@ -18,8 +18,6 @@ def test_simple(container):
         def provide(self, dependency):
             if dependency == 'test':
                 return DependencyInstance(dependency)
-            else:
-                raise DependencyNotProvidableError(dependency)
 
     assert isinstance(container.providers[DummyProvider], DummyProvider)
     assert 'test' == container['test']

@@ -1,7 +1,7 @@
 import pytest
 
-from antidote import DependencyInstance
-from antidote.exceptions import GetterPriorityConflict
+from antidote.core import DependencyInstance
+from antidote.exceptions import ResourcePriorityConflict
 from antidote.providers import ResourceProvider
 
 
@@ -16,7 +16,7 @@ def test_repr():
     assert str(getter) in repr(provider)
 
 
-def test_simple_getter():
+def test_simple():
     provider = ResourceProvider()
     data = dict(y=object(), x=object())
 
@@ -42,19 +42,6 @@ def test_namespace():
     assert 2 == provider.provide('g2:test').instance
 
     assert provider.provide('g3:test') is None
-
-
-def test_omit_namespace():
-    provider = ResourceProvider()
-    data = dict(y=object(), x=object())
-
-    def getter(key):
-        return data[key]
-
-    provider.register(resource_getter=getter, namespace='conf', omit_namespace=True)
-
-    assert data['y'] == provider.provide('conf:y').instance
-    assert data['x'] == provider.provide('conf:x').instance
 
 
 def test_priority():
@@ -94,7 +81,7 @@ def test_priority_conflict():
     provider = ResourceProvider()
     provider.register(resource_getter=lambda _: None, namespace='g', priority=2)
 
-    with pytest.raises(GetterPriorityConflict):
+    with pytest.raises(ResourcePriorityConflict):
         provider.register(resource_getter=lambda _: None, namespace='g', priority=2)
 
 
@@ -103,9 +90,3 @@ def test_singleton():
 
     provider.register(lambda _: object(), namespace='default')
     assert True is provider.provide('default:').singleton
-
-    provider.register(lambda _: object(), namespace='singleton', singleton=True)
-    assert True is provider.provide('singleton:').singleton
-
-    provider.register(lambda _: object(), namespace='unique', singleton=False)
-    assert False is provider.provide('unique:').singleton

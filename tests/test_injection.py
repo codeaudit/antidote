@@ -1,9 +1,9 @@
 import pytest
 
-from antidote import (DependencyProvider, factory, inject, new_container, provider,
-                      register, resource, wire)
-from antidote.exceptions import (DependencyInstantiationError,
-                                 DependencyNotProvidableError)
+from antidote import (factory, inject, new_container, provider, register, resource,
+                      wire)
+from antidote.core import DependencyProvider
+from antidote.exceptions import DependencyInstantiationError
 
 
 class Service:
@@ -137,7 +137,7 @@ class MyProvider(DependencyProvider):
         self.another_service = another_service
 
     def provide(self, dependency):
-        raise DependencyNotProvidableError(dependency)
+        return
 
     def method(self, yet_another_service: YetAnotherService):
         return yet_another_service
@@ -194,13 +194,13 @@ class_tests = [
     [getter_, G3],
     [factory, F2],
     [getter_, G2],
+    [register_build, B1],
 ]
 
 function_tests = [
     [factory, f1],
     [getter_, g1],
     [inject, f1],
-    [register_build, B1],
     [register_external_build, B1],
 ]
 
@@ -233,6 +233,13 @@ def parametrize_injection(tests, lazy=False, return_wrapped=False,
                                 [None] + list(inj_kwargs['dependencies'])
                             )
                             # @formatter:on
+                    except KeyError:
+                        pass
+
+                if name == 'register_build':
+                    try:
+                        if isinstance(inj_kwargs['auto_wire'], list):
+                            inj_kwargs['auto_wire'].append('build')
                     except KeyError:
                         pass
 

@@ -1,6 +1,6 @@
 import pkg_resources as _pkg_resources
 
-from .core import DependencyContainer, DependencyInstance, DependencyProvider, inject
+from .core import inject
 from .helpers.attrs import attrib
 from .helpers.container import context, new_container
 from .helpers.registration import factory, provider, register, resource
@@ -16,9 +16,6 @@ except _pkg_resources.DistributionNotFound:  # pragma: no cover
 
 __all__ = [
     'Build',
-    'DependencyContainer',
-    'DependencyInstance',
-    'DependencyProvider',
     'Tag',
     'Tagged',
     'TaggedDependencies',

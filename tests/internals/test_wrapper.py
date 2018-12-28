@@ -2,46 +2,63 @@
 Test only that the wrapper behaves nicely in all cases.
 Injection itself is tested through inject.
 """
+from typing import Any, List, Tuple
+
 import pytest
 
-from antidote import DependencyContainer
-from antidote._internal.wrapper import InjectedWrapper, InjectionBlueprint
+from antidote._internal.wrapper import InjectedWrapper, Injection, InjectionBlueprint
+from antidote.core import DependencyContainer
+from antidote.exceptions import DependencyNotFoundError
 
-container = DependencyContainer()
-blueprint = InjectionBlueprint(tuple())
+default_container = DependencyContainer()
 sentinel = object()
+sentinel_2 = object()
+sentinel_3 = object()
+default_container.update_singletons(dict(x=sentinel))
+
+inject_self_x = [('self', True, None), ('x', True, 'x')]
+inject_cls_x = [('cls', True, None), ('x', True, 'x')]
+inject_x = [('x', True, 'x')]
 
 
-def wrap(func):
-    return InjectedWrapper(
-        container=container,
-        blueprint=blueprint,
-        wrapped=func
-    )
+def wrap(func=None,
+         arg_dependency: List[Tuple[str, bool, Any]] = tuple(),
+         container: DependencyContainer = None):
+    def wrapper(func):
+        return InjectedWrapper(
+            container=container or default_container,
+            blueprint=InjectionBlueprint(tuple([
+                Injection(arg_name, required, dependency)
+                for arg_name, required, dependency in arg_dependency
+            ])),
+            wrapped=func
+        )
+
+    return func and wrapper(func) or wrapper
 
 
 class Dummy:
-    @wrap
+    @wrap(arg_dependency=inject_self_x)
     def method(self, x):
         return self, x
 
-    @wrap
+    @wrap(arg_dependency=inject_cls_x)
     @classmethod
     def class_before(cls, x):
         return cls, x
 
     @classmethod
-    @wrap
+    @wrap(arg_dependency=inject_cls_x)
     def class_after(cls, x):
         return cls, x
 
-    @wrap
+    @wrap(arg_dependency=inject_x)
     @staticmethod
     def static_before(x):
         return x
 
     @staticmethod
-    @wrap
+    @wrap(arg_dependency=inject_x)
     def static_after(x):
         return x
 
@@ -59,12 +76,12 @@ class Dummy2:
         return x
 
 
-Dummy2.method = wrap(Dummy2.__dict__['method'])
-Dummy2.class_method = wrap(Dummy2.__dict__['class_method'])
-Dummy2.static = wrap(Dummy2.__dict__['static'])
+Dummy2.method = wrap(Dummy2.__dict__['method'], inject_self_x)
+Dummy2.class_method = wrap(Dummy2.__dict__['class_method'], inject_cls_x)
+Dummy2.static = wrap(Dummy2.__dict__['static'], inject_x)
 
 
-@wrap
+@wrap(arg_dependency=inject_x)
 def f(x):
     return x
 
@@ -79,7 +96,7 @@ d2 = Dummy2()
         pytest.param(sentinel, f,
                      id='func'),
 
-        pytest.param((sentinel, sentinel), Dummy.method,
+        pytest.param((sentinel_2, sentinel), Dummy.method,
                      id='method'),
         pytest.param((Dummy, sentinel), Dummy.class_before,
                      id='classmethod before'),
@@ -108,7 +125,7 @@ d2 = Dummy2()
         pytest.param(sentinel, d2.static,
                      id='post:instance staticmethod'),
 
-        pytest.param((sentinel, sentinel), Dummy2.method,
+        pytest.param((sentinel_2, sentinel), Dummy2.method,
                      id='post:method'),
         pytest.param((Dummy2, sentinel), Dummy2.class_method,
                      id='post:classmethod'),
@@ -117,7 +134,61 @@ d2 = Dummy2()
     ]
 )
 def test_wrapper(expected, func):
-    if expected == (sentinel, sentinel):
-        assert expected == func(sentinel, sentinel)
+    if expected == (sentinel_2, sentinel):
+        assert expected == func(sentinel_2, sentinel)
+        assert expected == func(sentinel_2)
+        assert (sentinel_2, sentinel_3) == func(sentinel_2, sentinel_3)
+        assert (sentinel_2, sentinel_3) == func(sentinel_2, x=sentinel_3)
     else:
         assert expected == func(sentinel)
+        assert expected == func()
+
+        if isinstance(expected, tuple):
+            new_expected = (expected[0], sentinel_3)
+        else:
+            new_expected = sentinel_3
+
+        assert new_expected == func(sentinel_3)
+        assert new_expected == func(x=sentinel_3)
+
+
+def test_required_dependency_not_found():
+    @wrap(arg_dependency=[('x', True, 'unknown')])
+    def f(x):
+        return x
+
+    with pytest.raises(DependencyNotFoundError):
+        f()
+
+
+def test_dependency_not_found():
+    @wrap(arg_dependency=[('x', False, 'unknown')])
+    def f(x):
+        return x
+
+    with pytest.raises(TypeError):
+        f()
+
+
+def test_multiple_injections():
+    container = DependencyContainer()
+    xx = object()
+    yy = object()
+    zz = object()
+    container.update_singletons(dict(xx=xx, yy=yy))
+
+    @wrap(arg_dependency=[('x', True, 'xx'),
+                          ('y', True, 'yy'),
+                          ('z', False, 'zz')],
+          container=container)
+    def f(x, y, z=zz):
+        return x, y, z
+
+    assert (xx, yy, zz) == f()
+    assert (xx, sentinel, zz) == f(y=sentinel)
+    assert (xx, yy, sentinel) == f(z=sentinel)
+    assert (sentinel, yy, zz) == f(x=sentinel)
+    assert (sentinel, yy, sentinel_2) == f(sentinel, z=sentinel_2)
+
+    with pytest.raises(TypeError):
+        f(sentinel, x=sentinel)

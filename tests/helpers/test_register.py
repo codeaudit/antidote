@@ -1,6 +1,7 @@
 import pytest
 
-from antidote import DependencyContainer, register
+from antidote import register
+from antidote.core import DependencyContainer
 from antidote.providers import FactoryProvider, TagProvider
 
 
@@ -23,7 +24,7 @@ def test_simple(container):
     assert container[Service] is container[Service]
 
 
-def test_invalid_register(container):
+def test_invalid_class():
     with pytest.raises(ValueError):
         register(object())
 
@@ -32,3 +33,10 @@ def test_invalid_register(container):
 
     with pytest.raises(ValueError):
         register(f)
+
+
+def test_invalid_factory():
+    with pytest.raises(ValueError):
+        @register(factory=object())
+        class Dummy:
+            pass

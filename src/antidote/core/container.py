@@ -2,10 +2,10 @@ import threading
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Mapping, Optional, Tuple, cast
 
+from .exceptions import (DependencyCycleError, DependencyInstantiationError,
+                         DependencyNotFoundError)
 from .._internal.stack import DependencyStack
 from .._internal.utils import SlotsReprMixin
-from ..exceptions import (DependencyCycleError, DependencyInstantiationError,
-                          DependencyNotFoundError)
 
 
 class DependencyInstance(SlotsReprMixin):
@@ -123,26 +123,19 @@ class DependencyContainer:
 
         self._providers.append(provider)
 
-    def __setitem__(self, dependency, instance):
-        """
-        Set a dependency in the singletons.
-        """
-        with self._instantiation_lock:
-            self._singletons[dependency] = instance
-
-    def __delitem__(self, dependency):
-        """
-        Delete a dependency in the singletons.
-        """
-        with self._instantiation_lock:
-            del self._singletons[dependency]
-
     def update_singletons(self, dependencies: Mapping):
         """
         Update the singletons.
         """
         with self._instantiation_lock:
             self._singletons.update(dependencies)
+
+    def __setitem__(self, dependency, instance):
+        """
+        Set a dependency in the singletons.
+        """
+        with self._instantiation_lock:
+            self._singletons[dependency] = instance
 
     def __getitem__(self, dependency):
         """

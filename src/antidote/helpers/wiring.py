@@ -1,17 +1,15 @@
 import collections.abc as c_abc
 import inspect
-from typing import Any, Callable, Iterable, Mapping, Union
+from typing import Callable, Iterable, Union
 
 from .._internal.argspec import Arguments
-from ..core import DependencyContainer, inject
-
-LIMITED_DEPENDENCIES_TYPE = Union[Mapping[str, Any], Callable[[str], Any], str]
+from ..core import DEPENDENCIES_TYPE, DependencyContainer, inject
 
 
 def wire(class_: type = None,
          *,
          methods: Iterable[str] = None,
-         dependencies: LIMITED_DEPENDENCIES_TYPE = None,
+         dependencies: DEPENDENCIES_TYPE = None,
          use_names: Union[bool, Iterable[str]] = None,
          use_type_hints: Union[bool, Iterable[str]] = None,
          container: DependencyContainer = None

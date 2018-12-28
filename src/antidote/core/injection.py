@@ -4,7 +4,7 @@ from functools import wraps
 from typing import Any, Callable, Dict, Iterable, Mapping, Set, Union
 
 from .._internal.argspec import Arguments
-from .._internal.global_container import get_global_container
+from .._internal.default_container import get_default_container
 from .._internal.wrapper import InjectedWrapper, Injection, InjectionBlueprint
 from ..core import DependencyContainer
 
@@ -65,10 +65,8 @@ def inject(func: Union[Callable, staticmethod, classmethod] = None,
         if isinstance(wrapped, InjectedWrapper):
             return wrapped
 
-        if isinstance(wrapped, staticmethod):
+        if isinstance(wrapped, (staticmethod, classmethod)):
             arguments = Arguments.from_callable(wrapped.__func__)
-        elif isinstance(wrapped, classmethod):
-            arguments = Arguments.from_callable(wrapped.__func__, skip_first=True)
         else:
             arguments = Arguments.from_callable(wrapped)
 
@@ -85,7 +83,7 @@ def inject(func: Union[Callable, staticmethod, classmethod] = None,
             return wrapped
 
         wrapper = InjectedWrapper(
-            container=container or get_global_container(),
+            container=container or get_default_container(),
             blueprint=blueprint,
             wrapped=wrapped
         )
