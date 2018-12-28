@@ -56,7 +56,7 @@ class Build(SlotsReprMixin):
         return isinstance(other, Build) \
                and (self.wrapped is other.wrapped or self.wrapped == other.wrapped) \
                and self.args == other.args \
-               and self.kwargs == self.kwargs
+               and self.kwargs == self.kwargs  # noqa
 
 
 class FactoryProvider(DependencyProvider):

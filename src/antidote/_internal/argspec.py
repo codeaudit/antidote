@@ -1,6 +1,6 @@
 import inspect
 import typing
-from typing import Callable, Iterable, Sequence
+from typing import Callable, Iterator, Sequence
 
 
 class Argument:
@@ -56,5 +56,5 @@ class Arguments:
     def __len__(self):
         return len(self.arguments_by_name)
 
-    def __iter__(self) -> Iterable[Argument]:
+    def __iter__(self) -> Iterator[Argument]:
         return iter(self.arguments_by_name.values())

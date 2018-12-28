@@ -77,5 +77,3 @@ def test_complex_wire():
 
     assert d1 == Dummy3().f()
     assert (d1, d2) == Dummy3().g()
-
-

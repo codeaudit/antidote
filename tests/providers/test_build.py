@@ -37,4 +37,3 @@ def test_invalid_build():
 
     with pytest.raises(TypeError):
         Build()
-

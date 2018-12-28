@@ -187,7 +187,7 @@ def test_arguments_builder(func, expected: Arguments):
 
 def test_broken_type_hints_cpy353(monkeypatch):
     monkeypatch.setattr('typing.get_type_hints', raiser(Exception))
-    _ = Arguments.from_callable(k)
+    Arguments.from_callable(k)
 
 
 def test_magic_methods_arguments():
