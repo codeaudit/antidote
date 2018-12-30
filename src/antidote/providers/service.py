@@ -1,7 +1,8 @@
+import inspect
 from typing import Any, Callable, Dict, Optional, Tuple
 
 from .._internal.utils import SlotsReprMixin
-from ..core import DependencyInstance, DependencyProvider
+from ..core import DependencyContainer, DependencyInstance, DependencyProvider, Lazy
 from ..exceptions import DuplicateDependencyError
 
 
@@ -59,18 +60,19 @@ class Build(SlotsReprMixin):
                and self.kwargs == self.kwargs  # noqa
 
 
-class FactoryProvider(DependencyProvider):
+class ServiceProvider(DependencyProvider):
     """
     Provider managing factories. Also used to register classes directly.
     """
     bound_dependency_types = (Build,)
 
-    def __init__(self):
-        self._factories = dict()  # type: Dict[Any, Factory]
+    def __init__(self, container: DependencyContainer):
+        super().__init__(container)
+        self._service_to_factory = dict()  # type: Dict[Any, ServiceFactory]
 
     def __repr__(self):
         return "{}(factories={!r})".format(type(self).__name__,
-                                           tuple(self._factories.keys()))
+                                           tuple(self._service_to_factory.keys()))
 
     def provide(self, dependency) -> Optional[DependencyInstance]:
         """
@@ -82,12 +84,12 @@ class FactoryProvider(DependencyProvider):
 
         """
         if isinstance(dependency, Build):
-            key = dependency.wrapped
+            service = dependency.wrapped
         else:
-            key = dependency
+            service = dependency
 
         try:
-            factory = self._factories[key]  # type: Factory
+            factory = self._service_to_factory[service]  # type: ServiceFactory
         except KeyError:
             return None
 
@@ -99,21 +101,25 @@ class FactoryProvider(DependencyProvider):
             kwargs = dict()
 
         if factory.takes_dependency:
-            args = (key,) + args
+            args = (service,) + args
 
-        return DependencyInstance(factory(*args, **kwargs),
+        if factory.lazy_dependency is not None:
+            factory.func = self._container[factory.lazy_dependency]
+            factory.lazy_dependency = None
+
+        return DependencyInstance(factory.func(*args, **kwargs),
                                   singleton=factory.singleton)
 
     def register(self,
-                 dependency: Any,
-                 factory: Callable,
+                 service: type,
+                 factory: Callable = None,
                  singleton: bool = True,
                  takes_dependency: bool = False):
         """
         Register a factory for a dependency.
 
         Args:
-            dependency: dependency to register.
+            service: dependency to register.
             factory: Callable used to instantiate the dependency.
             singleton: Whether the dependency should be mark as singleton or
                 not for the :py:class:`~..core.DependencyContainer`.
@@ -121,35 +127,48 @@ class FactoryProvider(DependencyProvider):
                 dependency as its first arguments. This allows re-using the
                 same factory for different dependencies.
         """
-        if not callable(factory):
-            raise ValueError("The `factory` must be callable.")
+        if not inspect.isclass(service):
+            raise ValueError("A service must be a class, not a {!r}".format(service))
 
-        if dependency is None:
-            raise ValueError("`dependency` parameter must be specified.")
+        if isinstance(factory, Lazy):
+            service_factory = ServiceFactory(
+                singleton=singleton,
+                func=None,
+                lazy_dependency=factory.dependency,
+                takes_dependency=takes_dependency
+            )
+        elif factory is None or callable(factory):
+            service_factory = ServiceFactory(
+                singleton=singleton,
+                func=service if factory is None else factory,
+                lazy_dependency=None,
+                takes_dependency=takes_dependency
+            )
+        else:
+            raise ValueError("factory must be callable")
 
-        factory_ = Factory(func=factory,
-                           singleton=singleton,
-                           takes_dependency=takes_dependency)
+        if service in self._service_to_factory:
+            raise DuplicateDependencyError(service)
 
-        if dependency in self._factories:
-            raise DuplicateDependencyError(dependency)
-
-        self._factories[dependency] = factory_
+        self._service_to_factory[service] = service_factory
 
 
-class Factory(SlotsReprMixin):
+class ServiceFactory(SlotsReprMixin):
     """
     Not part of the public API.
 
     Only used by the FactoryProvider to store information on how the factory
     has to be used.
     """
-    __slots__ = ('func', 'singleton', 'takes_dependency')
+    __slots__ = ('singleton', 'func', 'takes_dependency', 'lazy_dependency')
 
-    def __init__(self, func: Callable, singleton: bool, takes_dependency: bool):
-        self.func = func
+    def __init__(self,
+                 singleton: bool,
+                 func: Optional[Callable],
+                 lazy_dependency: Optional[Any],
+                 takes_dependency: bool):
+        assert func is not None or lazy_dependency is not None
         self.singleton = singleton
+        self.func = func
+        self.lazy_dependency = lazy_dependency
         self.takes_dependency = takes_dependency
-
-    def __call__(self, *args, **kwargs):
-        return self.func(*args, **kwargs)

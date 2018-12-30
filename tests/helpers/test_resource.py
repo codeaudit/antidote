@@ -5,13 +5,14 @@ import pytest
 
 from antidote import resource
 from antidote.core import DependencyContainer
-from antidote.providers import ResourceProvider
+from antidote.providers import ResourceProvider, ServiceProvider
 
 
 @pytest.fixture()
 def container():
     c = DependencyContainer()
-    c.register_provider(ResourceProvider())
+    c.register_provider(ResourceProvider(container=c))
+    c.register_provider(ServiceProvider(container=c))
 
     return c
 

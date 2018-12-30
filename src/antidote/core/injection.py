@@ -19,6 +19,7 @@ DEPENDENCIES_TYPE = Union[
 
 def inject(func: Union[Callable, staticmethod, classmethod] = None,
            *,
+           arguments: Arguments = None,
            dependencies: DEPENDENCIES_TYPE = None,
            use_names: Union[bool, Iterable[str]] = None,
            use_type_hints: Union[bool, Iterable[str]] = None,
@@ -60,15 +61,18 @@ def inject(func: Union[Callable, staticmethod, classmethod] = None,
     """
 
     def _inject(wrapped):
+        nonlocal arguments
         # if the function has already its dependencies injected, no need to do
         # it twice.
         if isinstance(wrapped, InjectedWrapper):
             return wrapped
 
-        if isinstance(wrapped, (staticmethod, classmethod)):
-            arguments = Arguments.from_callable(wrapped.__func__)
-        else:
-            arguments = Arguments.from_callable(wrapped)
+        if arguments is None:
+            arguments = Arguments.from_callable(
+                wrapped.__func__
+                if isinstance(wrapped, (staticmethod, classmethod)) else
+                wrapped
+            )
 
         blueprint = _build_injection_blueprint(
             arguments=arguments,

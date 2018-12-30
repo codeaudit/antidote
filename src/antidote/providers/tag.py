@@ -75,8 +75,8 @@ class TagProvider(DependencyProvider):
     bound_dependency_types = (Tagged,)
 
     def __init__(self, container: DependencyContainer):
+        super().__init__(container)
         self._dependency_to_tag_by_tag_name = {}  # type: Dict[str, Dict[Any, Tag]]
-        self._container = container
 
     def __repr__(self):
         return "{}(tagged_dependencies={!r})".format(

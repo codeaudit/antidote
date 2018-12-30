@@ -1,9 +1,10 @@
 import bisect
 import re
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Union
 
+from antidote.core import Lazy
 from .._internal.utils import SlotsReprMixin
-from ..core import DependencyInstance, DependencyProvider
+from ..core import DependencyContainer, DependencyInstance, DependencyProvider
 from ..exceptions import ResourcePriorityConflict
 
 
@@ -13,12 +14,13 @@ class ResourceProvider(DependencyProvider):
     etc...
     """
 
-    def __init__(self):
-        self._priority_sorted_getters_by_namespace = dict()  # type: Dict[str, List[ResourceGetter]]  # noqa
+    def __init__(self, container: DependencyContainer):
+        super().__init__(container)
+        self._priority_sorted_resources_by_namespace = dict()  # type: Dict[str, List[Resource]]  # noqa
 
     def __repr__(self):
         return "{}(getters={!r})".format(type(self).__name__,
-                                         self._priority_sorted_getters_by_namespace)
+                                         self._priority_sorted_resources_by_namespace)
 
     def provide(self, dependency) -> Optional[DependencyInstance]:
         """
@@ -31,11 +33,14 @@ class ResourceProvider(DependencyProvider):
         """
         if isinstance(dependency, str) and ':' in dependency:
             namespace, resource_name = dependency.split(':', 1)
-            getters = self._priority_sorted_getters_by_namespace.get(namespace)
-            if getters is not None:
-                for getter in getters:
+            resources = self._priority_sorted_resources_by_namespace.get(namespace)
+            if resources is not None:
+                for resource in resources:
+                    if resource.lazy_dependency is not None:
+                        resource.getter = self._container[resource.lazy_dependency]
+                        resource.lazy_dependency = None
                     try:
-                        instance = getter.func(resource_name)
+                        instance = resource.getter(resource_name)
                     except LookupError:
                         pass
                     else:
@@ -44,7 +49,7 @@ class ResourceProvider(DependencyProvider):
         return None
 
     def register(self,
-                 resource_getter: Callable[[str], Any],
+                 getter: Union[Callable[[str], Any], type],
                  namespace: str,
                  priority: float = 0):
         """
@@ -53,7 +58,7 @@ class ResourceProvider(DependencyProvider):
         upon retrieval, like :code:`'<NAMESPACE>:<RESOURCE NAME>'`.
 
         Args:
-            resource_getter: Function used to retrieve a requested dependency
+            getter: Function used to retrieve a requested dependency
                 which will be given as an argument. If the dependency cannot
                 be provided,  it should raise a :py:exc:`LookupError`.
             namespace: Used to identity which getter should be used with a
@@ -76,34 +81,47 @@ class ResourceProvider(DependencyProvider):
                 "priority must be a number, not a {!r}".format(type(priority))
             )
 
-        getters = self._priority_sorted_getters_by_namespace.get(namespace) or []
+        if isinstance(getter, Lazy):
+            resource = Resource(getter=None,
+                                lazy_dependency=getter.dependency,
+                                namespace=namespace,
+                                priority=priority)
+        elif callable(getter):
+            resource = Resource(getter=getter,
+                                lazy_dependency=None,
+                                namespace=namespace,
+                                priority=priority)
+        else:
+            raise ValueError("getter must be callable")
 
-        for g in getters:
-            if g.priority == priority:
-                raise ResourcePriorityConflict(repr(g), repr(resource_getter))
+        resources = self._priority_sorted_resources_by_namespace.get(namespace) or []
+        for r in resources:
+            if r.priority == priority:
+                raise ResourcePriorityConflict(repr(r.getter), repr(getter))
 
         # Highest priority should be first
-        idx = bisect.bisect([-g.priority for g in getters], -priority)
-        getters.insert(idx, ResourceGetter(func=resource_getter,
-                                           namespace=namespace,
-                                           priority=priority))
+        idx = bisect.bisect([-r.priority for r in resources], -priority)
+        resources.insert(idx, resource)
 
-        self._priority_sorted_getters_by_namespace[namespace] = getters
+        self._priority_sorted_resources_by_namespace[namespace] = resources
 
 
-class ResourceGetter(SlotsReprMixin):
+class Resource(SlotsReprMixin):
     """
     Not part of the public API.
 
     Only used by the GetterProvider to store information on how a getter has to
     be used.
     """
-    __slots__ = ('func', 'namespace_', 'priority')
+    __slots__ = ('getter', 'namespace_', 'priority', 'lazy_dependency')
 
     def __init__(self,
-                 func: Callable[[str], Any],
+                 getter: Optional[Callable[[str], Any]],
+                 lazy_dependency: Optional[Any],
                  namespace: str,
                  priority: float):
-        self.func = func
+        assert getter is not None or lazy_dependency is not None
+        self.getter = getter
+        self.lazy_dependency = lazy_dependency
         self.namespace_ = namespace
         self.priority = priority

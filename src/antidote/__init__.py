@@ -1,11 +1,9 @@
 import pkg_resources as _pkg_resources
 
 from .core import inject
-from .helpers.attrs import attrib
-from .helpers.container import context, new_container
-from .helpers.registration import factory, provider, register, resource
-from .helpers.wiring import wire
-from .providers.factory import Build
+from .helpers import (attrib, context, factory, new_container, provider, register,
+                      resource, wire)
+from .providers.service import Build
 from .providers.tag import Tag, Tagged, TaggedDependencies
 
 try:
@@ -18,15 +16,11 @@ __all__ = [
     'Build',
     'Tag',
     'Tagged',
-    'TaggedDependencies',
     'attrib',
     'context',
     'factory',
     'inject',
     'new_container',
-    'provider',
-    'register',
-    'resource',
     'wire'
 ]
 

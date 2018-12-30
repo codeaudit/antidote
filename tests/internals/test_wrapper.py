@@ -152,6 +152,17 @@ def test_wrapper(expected, func):
         assert new_expected == func(x=sentinel_3)
 
 
+def test_classmethod_wrapping():
+    def class_method(cls):
+        pass
+
+    class A:
+        method = wrap(classmethod(class_method))
+
+    assert class_method == A.__dict__['method'].__func__
+    assert A == A.method.__self__
+
+
 def test_required_dependency_not_found():
     @wrap(arg_dependency=[('x', True, 'unknown')])
     def f(x):

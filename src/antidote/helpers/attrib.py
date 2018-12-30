@@ -51,7 +51,7 @@ def attrib(dependency: Any = None,
                     else:
                         break
             else:
-                raise ValueError(
+                raise RuntimeError(
                     "No dependency could be detected. Please specify "
                     "the parameter `dependency` or `use_name=True`."
                     "Annotations may also be used."

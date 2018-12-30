@@ -43,16 +43,13 @@ cdef class ResourceProvider(DependencyProvider):
             if ptr != NULL:
                 for getter in <list> ptr:
                     try:
-                        if getter.omit_namespace:
-                            instance = getter.func(resource_name)
-                        else:
-                            instance = getter.func(resource)
+                        instance = getter.func(resource_name)
                     except LookupError:
                         pass
                     else:
                         return DependencyInstance.__new__(DependencyInstance,
                                                           instance,
-                                                          getter.singleton)
+                                                          True)
 
     def register(self,
                  resource_getter: Callable[[str], Any],
@@ -81,35 +78,24 @@ cdef class ResourceProvider(DependencyProvider):
         # Highest priority should be first
         idx = bisect.bisect([-g.priority for g in getters], -priority)
         getters.insert(idx, ResourceGetter(func=resource_getter,
-                                           priority=priority,
-                                           omit_namespace=omit_namespace,
-                                           singleton=singleton))
+                                           priority=priority))
 
         self._priority_sorted_getters_by_namespace[namespace] = getters
 
 cdef class ResourceGetter:
     cdef:
         readonly object func
-        readonly bint singleton
-        readonly bint omit_namespace
         readonly float priority
 
     def __init__(self,
                  func: Callable[[str], Any],
-                 float priority,
-                 bint omit_namespace,
-                 bint singleton):
+                 float priority):
         self.func = func
-        self.omit_namespace = omit_namespace
-        self.singleton = singleton
         self.priority = priority
 
     def __repr__(self):
-        return "{}(func={!r}, omit_namespace={!r}, priority={!r}, " \
-               "singleton={!r})".format(
+        return "{}(func={!r},  priority={!r})".format(
             type(self).__name__,
             self.func,
-            self.omit_namespace,
             self.priority,
-            self.singleton
         )

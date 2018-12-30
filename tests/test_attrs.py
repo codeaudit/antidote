@@ -38,5 +38,5 @@ else:
         class BrokenTest:
             service = attrib(container=container)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(RuntimeError):
             BrokenTest()

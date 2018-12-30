@@ -40,6 +40,7 @@ def generate_extensions():
 
 
 ext_modules = []
+requires = []
 
 try:
     from Cython.Build import cythonize
@@ -47,6 +48,7 @@ except ImportError:
     pass
 else:
     ext_modules = cythonize(generate_extensions(), annotate=True)
+    requires = ['fastrlock>=0.4,<0.5']
 
 setup(
     name='antidote',
@@ -60,6 +62,7 @@ setup(
     package_dir={'': 'src'},
     include_dirs=["src"],
     ext_modules=ext_modules,
+    install_requires=requires,
     extras_require={
         ":python_version<'3.5'": ["typing"],
         "docs": [
@@ -71,7 +74,8 @@ setup(
         "tests": [
             "pytest",
             "pytest-cov",
-            "hypothesis"
+            "hypothesis",
+            "pretend"
         ]
     },
     license='MIT',

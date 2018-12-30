@@ -1,3 +1,4 @@
 from .container import DependencyContainer, DependencyInstance, DependencyProvider
-from .injection import inject, DEPENDENCIES_TYPE
+from .injection import DEPENDENCIES_TYPE, inject
 from .proxy import ProxyContainer
+from .utils import Lazy

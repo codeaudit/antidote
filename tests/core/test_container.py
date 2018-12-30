@@ -153,13 +153,13 @@ def test_bound_dependency_types():
             raise Exception()
 
     container = DependencyContainer()
-    container.register_provider(DummyProvider2())
-    container.register_provider(DummyProvider1())
+    container.register_provider(DummyProvider2(container))
+    container.register_provider(DummyProvider1(container))
     assert isinstance(container[CustomDependency()], DummyProvider1)
 
     container = DependencyContainer()
-    container.register_provider(DummyProvider1())
-    container.register_provider(DummyProvider2())
+    container.register_provider(DummyProvider1(container))
+    container.register_provider(DummyProvider2(container))
     assert isinstance(container[CustomDependency()], DummyProvider1)
 
 
@@ -180,7 +180,7 @@ def test_bound_dependency_types_conflict():
             return DependencyInstance(self)
 
     container = DependencyContainer()
-    container.register_provider(DummyProvider1())
+    container.register_provider(DummyProvider1(container))
 
     with pytest.raises(RuntimeError):
-        container.register_provider(DummyProvider2())
+        container.register_provider(DummyProvider2(container))

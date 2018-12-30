@@ -2,7 +2,7 @@
 # cython: boundscheck=False, wraparound=False
 from antidote.core.container cimport DependencyInstance, DependencyProvider
 
-cdef class FactoryProvider(DependencyProvider):
+cdef class ServiceProvider(DependencyProvider):
     cdef:
         dict _factories
 

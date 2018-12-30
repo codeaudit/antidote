@@ -2,13 +2,13 @@ import pytest
 
 from antidote import factory
 from antidote.core import DependencyContainer
-from antidote.providers import FactoryProvider, TagProvider
+from antidote.providers import ServiceProvider, TagProvider
 
 
 @pytest.fixture()
 def container():
     c = DependencyContainer()
-    c.register_provider(FactoryProvider())
+    c.register_provider(ServiceProvider(container=c))
     c.register_provider(TagProvider(container=c))
 
     return c
@@ -31,27 +31,6 @@ class SuperService:
 
 
 def test_function(container):
-    @factory(builds=(Service,), container=container)
-    def build():
-        return Service()
-
-    assert isinstance(container[Service], Service)
-    # singleton by default
-    assert container[Service] is container[Service]
-
-
-def test_class(container):
-    @factory(container=container, builds=(Service,))
-    class ServiceFactory:
-        def __call__(self):
-            return Service()
-
-    assert isinstance(container[Service], Service)
-    # singleton by default
-    assert container[Service] is container[Service]
-
-
-def test_function_return_type_hint(container):
     @factory(container=container)
     def build() -> Service:
         return Service()
@@ -61,19 +40,19 @@ def test_function_return_type_hint(container):
     assert container[Service] is container[Service]
 
 
-def test_class_return_type_hint(container):
+def test_class(container):
     @factory(container=container)
     class ServiceFactory:
-        def __call__(self) -> AnotherService:
-            return AnotherService()
+        def __call__(self) -> Service:
+            return Service()
 
-    assert isinstance(container[AnotherService], AnotherService)
+    assert isinstance(container[Service], Service)
     # singleton by default
-    assert container[AnotherService] is container[AnotherService]
+    assert container[Service] is container[Service]
 
 
-def test_missing_dependency(container):
-    with pytest.raises(ValueError):  # No dependency
+def test_missing_return_type_hint(container):
+    with pytest.raises(ValueError):
         @factory(container=container)
         def faulty_service_provider():
             return Service()
@@ -85,18 +64,7 @@ def test_missing_dependency(container):
                 return Service()
 
 
-def test_missing_call(container):
-    with pytest.raises(ValueError):
-        @factory(builds=(Service,), container=container)
-        class FaultyServiceFactory2:
-            pass
-
-
-def test_invalid_register():
-    with pytest.raises(ValueError):
-        factory(1)
-
-    with pytest.raises(ValueError):
-        @factory
-        class Test:
-            pass
+@pytest.mark.parametrize('func', [1, type('MissingCall', tuple(), {})])
+def test_invalid_func(func):
+    with pytest.raises(TypeError):
+        factory(func)

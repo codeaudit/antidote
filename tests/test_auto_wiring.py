@@ -1,3 +1,6 @@
+import functools
+from typing import Callable
+
 import pytest
 
 from antidote import (factory, inject, new_container, provider, register, resource,
@@ -69,6 +72,9 @@ class F2:
 
 
 class F3:
+    def __init__(self):
+        pass
+
     def __call__(self,
                  service: Service,
                  another_service=None) -> MyService:
@@ -104,6 +110,9 @@ class G2:
 
 
 class G3:
+    def __init__(self):
+        pass
+
     def __call__(self,
                  x,
                  service: Service,
@@ -157,7 +166,7 @@ def build(cls, service: Service, another_service=None):
 
 def wire_(class_=None, auto_wire=True, **kwargs):
     if auto_wire is True:
-        m = None
+        m = ['__init__']
     elif auto_wire is False:
         m = []
     else:
@@ -166,66 +175,73 @@ def wire_(class_=None, auto_wire=True, **kwargs):
     return wire(class_=class_, methods=m, **kwargs)
 
 
-wire_.__name__ = 'wire'
-
-
-def getter_(func=None, **kwargs):
-    return resource(func=func, namespace='my_service', **kwargs)
-
-
-getter_.__name__ = 'getter'
-
-
-def register_build(class_=None, **kwargs):
-    return register(class_, factory='build', **kwargs)
-
-
-def register_external_build(class_=None, **kwargs):
-    return register(class_, factory=build, **kwargs)
-
+resource_ = functools.partial(resource, namespace='my_service')
+register_build = functools.partial(register, factory='build')
+register_external_build = functools.partial(register, factory=build)
 
 class_tests = [
-    [provider, MyProvider],
-    [wire_, MyService],
-    [register, MyService],
-    [factory, F1],
-    [factory, F3],
-    [getter_, G1],
-    [getter_, G3],
-    [factory, F2],
-    [getter_, G2],
-    [register_build, B1],
+    pytest.param(provider, MyProvider,
+                 id='provider-MyProvider'),
+    pytest.param(wire_, MyService,
+                 id='wire-MyService'),
+    pytest.param(register, MyService,
+                 id='register-MyService'),
+    pytest.param(factory, F1,
+                 id='factory-F1'),
+    pytest.param(factory, F2,
+                 id='factory-F2'),
+    pytest.param(factory, F3,
+                 id='factory-F3'),
+    pytest.param(resource_, G1,
+                 id='resource-G1'),
+    pytest.param(resource_, G2,
+                 id='resource-G2'),
+    pytest.param(resource_, G3,
+                 id='resource-G3'),
+    pytest.param(register_build, B1,
+                 id='register_build-B1'),
 ]
 
 function_tests = [
-    [factory, f1],
-    [getter_, g1],
-    [inject, f1],
-    [register_external_build, B1],
+    pytest.param(factory, f1,
+                 id='factory-f1'),
+    pytest.param(resource_, g1,
+                 id='resource-g1'),
+    pytest.param(inject, f1,
+                 id='inject-f1'),
+    pytest.param(register_external_build, B1,
+                 id='register_external_build-B1'),
 ]
 
 all_tests = class_tests + function_tests
 
 
 def parametrize_injection(tests, lazy=False, return_wrapped=False,
+                          create_subclass=False,
                           **inject_kwargs):
     def decorator(test):
         @pytest.mark.parametrize('wrapper,wrapped', tests)
         def f(container, wrapper, wrapped):
             original_wrapped = wrapped
             if isinstance(wrapped, type):
-                # helpers do modify the class, so a copy has to be made to
-                # avoid any conflict between the tests.
-                wrapped = type(wrapped.__name__,
-                               wrapped.__bases__,
-                               wrapped.__dict__.copy())
+                if create_subclass:
+                    # Subclass to ensure use_mro is working properly.
+                    wrapped = type("Sub" + wrapped.__name__,
+                                   (wrapped,),
+                                   {'__init__': lambda s: None,
+                                    'build': lambda cls: cls()})
+                else:
+                    # helpers do modify the class, so a copy has to be made to
+                    # avoid any conflict between the tests.
+                    wrapped = type(wrapped.__name__,
+                                   wrapped.__bases__,
+                                   wrapped.__dict__.copy())
 
             def create():
-                name = wrapper.__name__
                 inj_kwargs = inject_kwargs.copy()
 
-                if ('getter' in name and original_wrapped is not G1) \
-                        or 'register_external' in name:
+                if (wrapper == resource_ and original_wrapped is not G1) \
+                        or wrapper == register_external_build:
                     try:
                         if isinstance(inj_kwargs['dependencies'], tuple):
                             # @formatter:off
@@ -236,17 +252,19 @@ def parametrize_injection(tests, lazy=False, return_wrapped=False,
                     except KeyError:
                         pass
 
-                if name == 'register_build':
+                if wrapper == register_build:
                     try:
-                        if isinstance(inj_kwargs['auto_wire'], list):
-                            inj_kwargs['auto_wire'].append('build')
+                        auto_wire = inj_kwargs['auto_wire']
+                        if isinstance(auto_wire, list) and '__init__' in auto_wire:
+                            auto_wire.append('build')
+                            auto_wire.remove('__init__')
                     except KeyError:
                         pass
 
                 wrapped_ = wrapper(wrapped, container=container, **inj_kwargs)
 
                 if return_wrapped:
-                    if 'register' in name and 'build' in name:
+                    if wrapper in {register_build, register_external_build}:
                         try:
                             return container[wrapped_]
                         except DependencyInstantiationError as e:
@@ -254,20 +272,19 @@ def parametrize_injection(tests, lazy=False, return_wrapped=False,
                     else:
                         return wrapped_()
 
-                if 'register' in name:
+                if wrapper in {register, register_build, register_external_build}:
                     return container[wrapped_]
-                elif 'factory' in name:
+                elif wrapper == factory:
                     return container[MyService]
-                elif 'getter' in name:
+                elif wrapper == resource_:
                     return container['my_service:*']
-                elif 'provider' in name:
+                elif wrapper == provider:
                     return container.providers[wrapped_]
-                elif 'inject' in name or 'wire' in name:
+                elif wrapper in {inject, wire_}:
                     return wrapped_()
 
             if lazy:
-                return test(container,
-                            create_instance=create)
+                return test(container, create_instance=create)
 
             return test(container, instance=create())
 
@@ -288,9 +305,28 @@ def test_complex_wiring(container, instance: MyService):
     assert instance.method() is container[YetAnotherService]
 
 
+@parametrize_injection(class_tests,
+                       return_wrapped=True,
+                       create_subclass=True,
+                       auto_wire=['__init__', 'method'],
+                       use_mro=True)
+def test_subclass_use_mro(container, instance: MyService):
+    assert instance.method() is container[YetAnotherService]
+
+
+@parametrize_injection(class_tests,
+                       lazy=True,
+                       return_wrapped=True,
+                       create_subclass=True,
+                       auto_wire=['method'])
+def test_subclass_no_mro(container, create_instance: Callable):
+    with pytest.raises(TypeError):
+        create_instance()
+
+
 @parametrize_injection(class_tests, lazy=True, return_wrapped=True,
                        auto_wire=False)
-def test_no_wiring(container, create_instance):
+def test_no_wiring(container, create_instance: Callable):
     with pytest.raises(TypeError):
         instance = create_instance()
         if callable(instance):
@@ -299,7 +335,7 @@ def test_no_wiring(container, create_instance):
 
 @parametrize_injection(all_tests, lazy=True, return_wrapped=True,
                        use_type_hints=False)
-def test_no_type_hints(container, create_instance):
+def test_no_type_hints(container, create_instance: Callable):
     with pytest.raises(TypeError):
         instance = create_instance()
         if callable(instance):
@@ -314,7 +350,7 @@ def test_type_hints_only_service(container, instance):
 
 @parametrize_injection(all_tests, lazy=True, return_wrapped=True,
                        use_type_hints=['another_service'])
-def test_type_hints_only_another_service(container, create_instance):
+def test_type_hints_only_another_service(container, create_instance: Callable):
     with pytest.raises(TypeError):
         instance = create_instance()
         if callable(instance):

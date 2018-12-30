@@ -45,7 +45,7 @@ cdef class Build:
                and self.args == other.args \
                and self.kwargs == self.kwargs
 
-cdef class FactoryProvider(DependencyProvider):
+cdef class ServiceProvider(DependencyProvider):
     bound_dependency_types = (Build,)
 
     def __init__(self):

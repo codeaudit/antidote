@@ -1,6 +1,5 @@
 import threading
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Mapping, Optional, Tuple, cast
+from typing import Any, cast, Dict, List, Mapping, Optional, Tuple
 
 from .exceptions import (DependencyCycleError, DependencyInstantiationError,
                          DependencyNotFoundError)
@@ -21,7 +20,7 @@ class DependencyInstance(SlotsReprMixin):
         self.singleton = singleton
 
 
-class DependencyProvider(ABC):
+class DependencyProvider:
     """
     Abstract base class for a Provider.
 
@@ -35,7 +34,9 @@ class DependencyProvider(ABC):
     """
     bound_dependency_types = cast(Tuple[type], ())  # type: Tuple[type]
 
-    @abstractmethod
+    def __init__(self, container: 'DependencyContainer'):
+        self._container = container
+
     def provide(self, dependency: Any) -> Optional[DependencyInstance]:
         """
         Method called by the :py:class:`~.core.DependencyContainer` when
@@ -53,6 +54,7 @@ class DependencyProvider(ABC):
             The requested instance wrapped in a :py:class:`~.core.Instance`
             if available or :py:obj:`None`.
         """
+        raise NotImplementedError()  # pragma: no cover
 
 
 class DependencyContainer:
@@ -179,15 +181,14 @@ class DependencyContainer:
                     pass
 
                 dependency_instance = None
-                try:
-                    provider = self._type_to_provider[type(dependency)]
-                except KeyError:
+                provider = self._type_to_provider.get(type(dependency))
+                if provider is not None:
+                    dependency_instance = provider.provide(dependency)
+                else:
                     for provider in self._providers:
                         dependency_instance = provider.provide(dependency)
                         if dependency_instance is not None:
                             break
-                else:
-                    dependency_instance = provider.provide(dependency)
 
                 if dependency_instance is not None:
                     if dependency_instance.singleton:

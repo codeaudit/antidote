@@ -3,13 +3,13 @@ from typing import Iterable, Mapping
 
 from .._internal.default_container import get_default_container, set_default_container
 from ..core import DependencyContainer, ProxyContainer
-from ..providers import FactoryProvider, ResourceProvider, TagProvider
+from ..providers import ServiceProvider, ResourceProvider, TagProvider
 
 
 def new_container() -> DependencyContainer:
     container = DependencyContainer()
-    container.register_provider(FactoryProvider())
-    container.register_provider(ResourceProvider())
+    container.register_provider(ServiceProvider(container))
+    container.register_provider(ResourceProvider(container))
     container.register_provider(TagProvider(container))
 
     return container
