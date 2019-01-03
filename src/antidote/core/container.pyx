@@ -24,12 +24,6 @@ cdef class DependencyInstance:
                                                       self.instance,
                                                       self.singleton)
 
-cdef class DependencyProvider:
-    bound_dependency_types = ()  # type: Tuple[type]
-
-    cpdef DependencyInstance provide(self, dependency):
-        raise NotImplementedError()
-
 cdef class DependencyContainer:
     def __init__(self):
         self._providers = list()  # type: List[DependencyProvider]
@@ -115,7 +109,7 @@ cdef class DependencyContainer:
         cdef:
             DependencyInstance dependency_instance = None
             DependencyProvider provider
-            PyObject* ptr
+            PyObject*ptr
             Exception e
             list stack
 
@@ -162,3 +156,16 @@ cdef class DependencyContainer:
             self._instantiation_lock.release()
 
         return self.SENTINEL
+
+cdef class DependencyProvider:
+    bound_dependency_types = ()  # type: Tuple[type]
+
+    def __init__(self, DependencyContainer container):
+        self._container = container
+
+    cpdef DependencyInstance provide(self, dependency):
+        raise NotImplementedError()
+
+cdef class Lazy:
+    def __init__(self, dependency: Any):
+        self.dependency = dependency

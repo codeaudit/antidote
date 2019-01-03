@@ -2,7 +2,8 @@ import inspect
 from typing import Any, Callable, Dict, Optional, Tuple
 
 from .._internal.utils import SlotsReprMixin
-from ..core import DependencyContainer, DependencyInstance, DependencyProvider, Lazy
+from ..core import DependencyContainer, DependencyInstance, DependencyProvider
+from antidote.core import Lazy
 from ..exceptions import DuplicateDependencyError
 
 
@@ -128,7 +129,7 @@ class ServiceProvider(DependencyProvider):
                 same factory for different dependencies.
         """
         if not inspect.isclass(service):
-            raise ValueError("A service must be a class, not a {!r}".format(service))
+            raise TypeError("A service must be a class, not a {!r}".format(service))
 
         if isinstance(factory, Lazy):
             service_factory = ServiceFactory(

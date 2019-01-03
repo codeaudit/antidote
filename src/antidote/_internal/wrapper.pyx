@@ -79,6 +79,14 @@ cdef class InjectedWrapper:
             or (not isinstance(self.__wrapped__, staticmethod) and instance is not None)
         )
 
+    @property
+    def __func__(self):
+        return self.__wrapped__.__func__
+
+    @property
+    def __self__(self):
+        return self.__wrapped__.__self__
+
 cdef class InjectedBoundWrapper(InjectedWrapper):
     def __get__(self, instance, owner):
         return self

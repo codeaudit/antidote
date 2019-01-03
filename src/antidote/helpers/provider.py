@@ -62,7 +62,7 @@ def provider(class_: type = None,
                        container=container,
                        ignore_missing_methods=auto_wire is True)
 
-        container.register_provider(cls())
+        container.register_provider(cls(container=container))
 
         return cls
 

@@ -77,6 +77,6 @@ def test_invalid_factory(provider: ServiceProvider, factory):
 
 @pytest.mark.parametrize('service', ['test', object()])
 def test_invalid_service(provider: ServiceProvider, service):
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         provider.register(service=service)
 

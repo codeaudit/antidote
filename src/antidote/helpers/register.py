@@ -4,7 +4,8 @@ from typing import Callable, cast, Iterable, Union
 
 from .wire import wire
 from .._internal.default_container import get_default_container
-from ..core import DEPENDENCIES_TYPE, DependencyContainer, inject, Lazy
+from ..core import DEPENDENCIES_TYPE, DependencyContainer, inject
+from antidote.core import Lazy
 from ..providers.service import ServiceProvider
 from ..providers.tag import Tag, TagProvider
 
@@ -64,6 +65,7 @@ def register(class_: type = None,
     """
     container = container or get_default_container()
     auto_wire = auto_wire if auto_wire is not None else True
+    ignore_missing_methods = False
 
     if auto_wire is True:
         if isinstance(factory, str):
@@ -71,6 +73,7 @@ def register(class_: type = None,
             if use_mro is None:
                 use_mro = (factory,)
         else:
+            ignore_missing_methods = True
             methods = ('__init__',)
     elif auto_wire is False:
         pass
@@ -102,18 +105,19 @@ def register(class_: type = None,
                        use_names=use_names,
                        use_type_hints=use_type_hints,
                        container=container,
-                       ignore_missing_methods=auto_wire is True)
+                       ignore_missing_methods=ignore_missing_methods)
 
         if factory is None or isinstance(factory, Lazy):
             pass
         elif isinstance(factory, str):
             factory = getattr(cls, factory)
         elif inspect.isfunction(factory):
-            factory = inject(factory,
-                             dependencies=dependencies,
-                             use_names=use_names,
-                             use_type_hints=use_type_hints,
-                             container=container)
+            if auto_wire:
+                factory = inject(factory,
+                                 dependencies=dependencies,
+                                 use_names=use_names,
+                                 use_type_hints=use_type_hints,
+                                 container=container)
         else:
             raise TypeError("factory must be either a method name, a function, or a "
                             "lazy dependency, not {!r}".format(type(factory)))

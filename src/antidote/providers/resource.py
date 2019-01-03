@@ -49,7 +49,7 @@ class ResourceProvider(DependencyProvider):
         return None
 
     def register(self,
-                 getter: Union[Callable[[str], Any], type],
+                 getter: Union[Callable[[str], Any], Lazy],
                  namespace: str,
                  priority: float = 0):
         """
@@ -70,14 +70,14 @@ class ResourceProvider(DependencyProvider):
 
         """
         if not isinstance(namespace, str):
-            raise ValueError(
+            raise TypeError(
                 "namespace must be a string, not a {!r}".format(type(namespace))
             )
         elif not re.match(r'^\w+$', namespace):
             raise ValueError("namespace can only contain characters in [a-zA-Z0-9_]")
 
         if not isinstance(priority, (int, float)):
-            raise ValueError(
+            raise TypeError(
                 "priority must be a number, not a {!r}".format(type(priority))
             )
 

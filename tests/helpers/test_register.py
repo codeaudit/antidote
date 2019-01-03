@@ -79,11 +79,30 @@ def test_invalid_class(cls):
     'kwargs',
     [
         dict(factory=object()),
-        dict(auto_wire=object())
+        dict(auto_wire=object()),
     ]
 )
-def test_invalid_factory(kwargs):
+def test_invalid_params(kwargs):
     with pytest.raises(TypeError):
         @register(**kwargs)
         class Dummy:
             pass
+
+
+def test_invalid_factory_wiring():
+    with pytest.raises(AttributeError):
+        @register(factory='build')
+        class Dummy:
+            pass
+
+    class NewDummy:
+        @classmethod
+        def build(cls):
+            return cls()
+
+    with pytest.raises(TypeError):
+        @register(factory='build', use_mro=False)
+        class Dummy(NewDummy):
+            pass
+
+

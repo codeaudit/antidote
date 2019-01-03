@@ -1,13 +1,15 @@
 # cython: language_level=3, language=c++
 # cython: boundscheck=False, wraparound=False
-from typing import Any, Callable, Dict, Tuple
+import inspect
+from typing import Any, Callable, Dict, Tuple, Optional
 
 # @formatter:off
 from cpython.dict cimport PyDict_GetItem
 from cpython.ref cimport PyObject
 
-from antidote.core.container cimport DependencyInstance, DependencyProvider
-from ..exceptions import DuplicateDependencyError
+from antidote.core.container cimport (DependencyContainer, DependencyInstance,
+                                     DependencyProvider, Lazy)
+from ..exceptions import DuplicateDependencyError, DependencyNotFoundError
 # @formatter:on
 
 cdef class Build:
@@ -48,25 +50,35 @@ cdef class Build:
 cdef class ServiceProvider(DependencyProvider):
     bound_dependency_types = (Build,)
 
-    def __init__(self):
-        self._factories = dict()  # type: Dict[Any, Factory]
+    def __init__(self, DependencyContainer container):
+        super().__init__(container)
+        self._service_to_factory = dict()  # type: Dict[Any, ServiceFactory]
 
     def __repr__(self):
         return "{}(factories={!r})".format(type(self).__name__,
-                                           tuple(self._factories.keys()))
+                                           tuple(self._service_to_factory.keys()))
 
     cpdef DependencyInstance provide(self, object dependency):
         cdef:
-            Factory factory
+            ServiceFactory factory
             Build build
             PyObject*ptr
             object instance
+            object dependency_instance
 
         if isinstance(dependency, Build):
             build = <Build> dependency
-            ptr = PyDict_GetItem(self._factories, build.wrapped)
+            ptr = PyDict_GetItem(self._service_to_factory, build.wrapped)
             if ptr != NULL:
-                factory = <Factory> ptr
+                factory = <ServiceFactory> ptr
+
+                if factory.lazy_dependency is not None:
+                    dependency_instance = self._container.provide(factory.lazy_dependency)
+                    if dependency_instance is None:
+                        raise DependencyNotFoundError(dependency_instance)
+                    factory.lazy_dependency = None
+                    factory.func = dependency_instance
+
                 if factory.takes_dependency:
                     instance = factory.func(build.wrapped, *build.args, **build.kwargs)
                 else:
@@ -74,9 +86,17 @@ cdef class ServiceProvider(DependencyProvider):
             else:
                 return
         else:
-            ptr = PyDict_GetItem(self._factories, dependency)
+            ptr = PyDict_GetItem(self._service_to_factory, dependency)
             if ptr != NULL:
-                factory = <Factory> ptr
+                factory = <ServiceFactory> ptr
+
+                if factory.lazy_dependency is not None:
+                    dependency_instance = self._container.provide(factory.lazy_dependency)
+                    if dependency_instance is None:
+                        raise DependencyNotFoundError(dependency_instance)
+                    factory.lazy_dependency = None
+                    factory.func = dependency_instance
+
                 if factory.takes_dependency:
                     instance = factory.func(dependency)
                 else:
@@ -89,40 +109,60 @@ cdef class ServiceProvider(DependencyProvider):
                                           factory.singleton)
 
     def register(self,
-                 dependency: Any,
-                 factory: Callable,
+                 service: type,
+                 factory: Callable = None,
                  bint singleton: bool = True,
                  bint takes_dependency: bool = False):
-        if not callable(factory):
-            raise ValueError("The `factory` must be callable.")
+        if not inspect.isclass(service):
+            raise TypeError("A service must be a class, not a {!r}".format(service))
 
-        if dependency is None:
-            raise ValueError("`dependency` parameter must be specified.")
+        if isinstance(factory, Lazy):
+            service_factory = ServiceFactory(
+                singleton=singleton,
+                func=None,
+                lazy_dependency=factory.dependency,
+                takes_dependency=takes_dependency
+            )
+        elif factory is None or callable(factory):
+            service_factory = ServiceFactory(
+                singleton=singleton,
+                func=service if factory is None else factory,
+                lazy_dependency=None,
+                takes_dependency=takes_dependency
+            )
+        else:
+            raise ValueError("factory must be callable")
 
-        factory_ = Factory(func=factory,
-                           singleton=singleton,
-                           takes_dependency=takes_dependency)
+        if service in self._service_to_factory:
+            raise DuplicateDependencyError(service)
 
-        if dependency in self._factories:
-            raise DuplicateDependencyError(dependency)
+        self._service_to_factory[service] = service_factory
 
-        self._factories[dependency] = factory_
 
-cdef class Factory:
+cdef class ServiceFactory:
     cdef:
         readonly object func
         readonly bint singleton
         readonly bint takes_dependency
+        readonly object lazy_dependency
 
-    def __init__(self, func: Callable, bint singleton, bint takes_dependency):
-        self.func = func
+    def __init__(self,
+                 bint singleton,
+                 func: Optional[Callable],
+                 lazy_dependency: Optional[Any],
+                 bint takes_dependency):
+        assert func is not None or lazy_dependency is not None
         self.singleton = singleton
+        self.func = func
+        self.lazy_dependency = lazy_dependency
         self.takes_dependency = takes_dependency
 
     def __repr__(self):
-        return "{}(func={!r}, singleton={!r}, takes_dependency={!r})".format(
+        return "{}(func={!r}, singleton={!r}, takes_dependency={!r}," \
+               "lazy_dependency={!r})".format(
             type(self).__name__,
             self.func,
             self.singleton,
-            self.takes_dependency
+            self.takes_dependency,
+            self.lazy_dependency,
         )

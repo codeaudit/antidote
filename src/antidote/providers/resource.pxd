@@ -4,6 +4,6 @@ from antidote.core.container cimport DependencyInstance, DependencyProvider
 
 cdef class ResourceProvider(DependencyProvider):
     cdef:
-        public dict _priority_sorted_getters_by_namespace
+        dict _priority_sorted_resources_by_namespace
 
     cpdef DependencyInstance provide(self, object dependency)

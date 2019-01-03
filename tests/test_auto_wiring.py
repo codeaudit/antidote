@@ -5,7 +5,7 @@ import pytest
 
 from antidote import (factory, inject, new_container, provider, register, resource,
                       wire)
-from antidote.core import DependencyProvider
+from antidote.core import DependencyProvider, DependencyContainer
 from antidote.exceptions import DependencyInstantiationError
 
 
@@ -140,8 +140,10 @@ class B1:
 
 class MyProvider(DependencyProvider):
     def __init__(self,
+                 container: DependencyContainer,
                  service: Service,
                  another_service=None):
+        self._container = container
         self.service = service
         self.another_service = another_service
 
@@ -225,10 +227,13 @@ def parametrize_injection(tests, lazy=False, return_wrapped=False,
             original_wrapped = wrapped
             if isinstance(wrapped, type):
                 if create_subclass:
+                    def __init__(*args, **kwargs):
+                        pass
+
                     # Subclass to ensure use_mro is working properly.
                     wrapped = type("Sub" + wrapped.__name__,
                                    (wrapped,),
-                                   {'__init__': lambda s: None,
+                                   {'__init__': __init__,
                                     'build': lambda cls: cls()})
                 else:
                     # helpers do modify the class, so a copy has to be made to
@@ -324,7 +329,7 @@ def test_subclass_no_mro(container, create_instance: Callable):
         create_instance()
 
 
-@parametrize_injection(class_tests, lazy=True, return_wrapped=True,
+@parametrize_injection(all_tests, lazy=True, return_wrapped=True,
                        auto_wire=False)
 def test_no_wiring(container, create_instance: Callable):
     with pytest.raises(TypeError):

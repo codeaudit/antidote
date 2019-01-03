@@ -22,7 +22,6 @@ cdef class TaggedDependencies:
 
 cdef class TagProvider(DependencyProvider):
     cdef:
-        DependencyContainer _container
         dict _dependency_to_tag_by_tag_name
 
     cpdef DependencyInstance provide(self, dependency)

@@ -20,43 +20,6 @@ class DependencyInstance(SlotsReprMixin):
         self.singleton = singleton
 
 
-class DependencyProvider:
-    """
-    Abstract base class for a Provider.
-
-    Used by the :py:class:`~.core.DependencyContainer` to instantiate
-    dependencies. Several are used in a cooperative manner : the first instance
-    to be returned by one of them is used. Thus providers should ideally not
-    overlap and handle only one kind of dependencies such as strings or tag.
-
-    This should be used whenever one needs to introduce a new kind of dependency,
-    or control how certain dependencies are instantiated.
-    """
-    bound_dependency_types = cast(Tuple[type], ())  # type: Tuple[type]
-
-    def __init__(self, container: 'DependencyContainer'):
-        self._container = container
-
-    def provide(self, dependency: Any) -> Optional[DependencyInstance]:
-        """
-        Method called by the :py:class:`~.core.DependencyContainer` when
-        searching for a dependency.
-
-        It is necessary to check quickly if the dependency can be provided or
-        not, as :py:class:`~.core.DependencyContainer` will try its
-        registered providers. A good practice is to subclass
-        :py:class:`~.core.Dependency` so custom dependencies be differentiated.
-
-        Args:
-            dependency: The dependency to be provided by the provider.
-
-        Returns:
-            The requested instance wrapped in a :py:class:`~.core.Instance`
-            if available or :py:obj:`None`.
-        """
-        raise NotImplementedError()  # pragma: no cover
-
-
 class DependencyContainer:
     """
     Instantiates the dependencies through the registered providers and handles
@@ -88,7 +51,7 @@ class DependencyContainer:
         )
 
     @property
-    def providers(self) -> Mapping[type, DependencyProvider]:
+    def providers(self) -> Mapping[type, 'DependencyProvider']:
         """
         Returns: A mapping of all the registered providers by their type.
         """
@@ -101,7 +64,7 @@ class DependencyContainer:
         """
         return self._singletons.copy()
 
-    def register_provider(self, provider: DependencyProvider):
+    def register_provider(self, provider: 'DependencyProvider'):
         """
         Registers a provider, which can then be used to instantiate dependencies.
 
@@ -203,3 +166,47 @@ class DependencyContainer:
             raise DependencyInstantiationError(dependency) from e
 
         return self.SENTINEL
+
+
+class DependencyProvider:
+    """
+    Abstract base class for a Provider.
+
+    Used by the :py:class:`~.core.DependencyContainer` to instantiate
+    dependencies. Several are used in a cooperative manner : the first instance
+    to be returned by one of them is used. Thus providers should ideally not
+    overlap and handle only one kind of dependencies such as strings or tag.
+
+    This should be used whenever one needs to introduce a new kind of dependency,
+    or control how certain dependencies are instantiated.
+    """
+    bound_dependency_types = cast(Tuple[type], ())  # type: Tuple[type]
+
+    def __init__(self, container: DependencyContainer):
+        self._container = container
+
+    def provide(self, dependency: Any) -> Optional[DependencyInstance]:
+        """
+        Method called by the :py:class:`~.core.DependencyContainer` when
+        searching for a dependency.
+
+        It is necessary to check quickly if the dependency can be provided or
+        not, as :py:class:`~.core.DependencyContainer` will try its
+        registered providers. A good practice is to subclass
+        :py:class:`~.core.Dependency` so custom dependencies be differentiated.
+
+        Args:
+            dependency: The dependency to be provided by the provider.
+
+        Returns:
+            The requested instance wrapped in a :py:class:`~.core.Instance`
+            if available or :py:obj:`None`.
+        """
+        raise NotImplementedError()  # pragma: no cover
+
+
+class Lazy(SlotsReprMixin):
+    __slots__ = ('dependency',)
+
+    def __init__(self, dependency: Any):
+        self.dependency = dependency

@@ -10,9 +10,6 @@ cdef class DependencyInstance:
         readonly object instance
         readonly bint singleton
 
-cdef class DependencyProvider:
-    cpdef DependencyInstance provide(self, object dependency)
-
 cdef class DependencyContainer:
     cdef:
         readonly object SENTINEL
@@ -24,3 +21,13 @@ cdef class DependencyContainer:
         FastRLock _instantiation_lock
 
     cpdef object provide(self, object dependency)
+
+cdef class DependencyProvider:
+    cdef:
+        public DependencyContainer _container
+
+    cpdef DependencyInstance provide(self, object dependency)
+
+cdef class Lazy:
+    cdef:
+        public object dependency

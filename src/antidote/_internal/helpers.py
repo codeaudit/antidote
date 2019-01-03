@@ -1,7 +1,8 @@
 import inspect
 from typing import Any, Callable, get_type_hints, Iterable, Tuple, TypeVar, Union
 
-from ..core import DependencyContainer, inject, Lazy
+from ..core import DependencyContainer, inject
+from antidote.core import Lazy
 
 T = TypeVar('T', bound=Union[Callable, type])
 
